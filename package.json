@@ -1,6 +1,6 @@
 {
   "name": "sparklog",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sparklog - 灵感气泡记录工具",
   "main": "out/main/index.js",
   "author": "Sparklog",
