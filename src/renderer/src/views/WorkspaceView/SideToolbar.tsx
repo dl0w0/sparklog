@@ -27,6 +27,9 @@ export function SideToolbar(): JSX.Element {
         ⬡
       </button>
       <div className="sl-divider" />
+      <button className="sl-tool" title="梳理气泡（均匀铺开）" onClick={() => getCanvasController()?.tidy()}>
+        ✳
+      </button>
       <button className="sl-tool" title="适应画布 (Ctrl+Shift+F)" onClick={() => getCanvasController()?.fit()}>
         ⤢
       </button>

@@ -32,6 +32,8 @@ export interface CanvasController {
   fit: () => void
   worldCenter: () => { x: number; y: number }
   centerOn: (id: string) => void
+  /** 梳理气泡：均匀低重叠布局并动画过渡（D63） */
+  tidy: () => void
 }
 
 let canvas: CanvasController | null = null

@@ -3,7 +3,7 @@
 import type { BubbleGeometry } from '@renderer/logic/geometry'
 import { IMPORTANCE_MIN, DEPTH_SCALE, MIN_DEPTH_SCALE } from '@shared/constants'
 import { importanceToMindmapRadius, importanceToRadius } from './bubbleMetrics'
-import type { BubbleNode, ViewMode } from '@shared/types/document'
+import type { BubbleNode, ViewMode, BubbleShape } from '@shared/types/document'
 
 export function isRootNode(node: BubbleNode): boolean {
   return node.parentIds.length === 0
@@ -70,11 +70,69 @@ export function shapeOf(node: BubbleNode): BubbleNode['shape'] {
   return node.style?.shape ?? node.shape
 }
 
-export function fontSizeOf(node: BubbleNode, mode: ViewMode, depth = 0): number {
-  return (
-    node.style?.fontSize ??
-    Math.max(11, Math.min(20, Math.round(13 + (radiusOf(node, mode, depth) - 22) / 9)))
-  )
+/** 层级默认字号：主气泡最大，每下一级降一档，全局下限 11（D65） */
+export const DEPTH_FONT_BASE = 20
+export const DEPTH_FONT_STEP = 1.6
+export const DEPTH_FONT_MIN = 11
+
+export function depthFontSize(depth: number): number {
+  return Math.max(DEPTH_FONT_MIN, DEPTH_FONT_BASE - Math.max(0, depth) * DEPTH_FONT_STEP)
+}
+
+/**
+ * 气泡字号只由「层级默认字号 + 用户 style 覆盖」决定（D74）：
+ * 不随 importance / 半径 / 画布缩放变化。
+ */
+export function fontSizeOf(node: BubbleNode, _mode?: ViewMode, depth = 0): number {
+  return node.style?.fontSize ?? depthFontSize(depth)
+}
+
+/**
+ * 文字可用区域：按气泡真实形状取内接矩形（D75）。
+ * 圆形/椭圆用 1/√2 系数，保证矩形四角都落在弧线内；圆角矩形按内缩。
+ */
+export function textBoxOf(
+  shape: BubbleShape,
+  metrics: { rx: number; ry: number },
+  padding: number
+): { w: number; h: number } {
+  const p = Math.max(0, padding)
+  if (shape === 'roundedRect') {
+    return { w: Math.max(1, metrics.rx * 2 - p * 2), h: Math.max(1, metrics.ry * 2 - p * 2) }
+  }
+  // 椭圆/圆：内接矩形半宽半高 = (r - padding) / √2
+  const k = Math.SQRT1_2
+  return {
+    w: Math.max(1, (metrics.rx - p) * 2 * k),
+    h: Math.max(1, (metrics.ry - p) * 2 * k)
+  }
+}
+
+/** 文字在给定盒子内是否会被截断 */
+export function textOverflowsInBox(text: string, boxW: number, boxH: number, fontSize: number): boolean {
+  const content = text.trim()
+  if (!content) return false
+  const charsPerLine = Math.max(1, Math.floor(boxW / (fontSize * 0.62)))
+  const lineHeight = fontSize * 1.3
+  const maxLines = Math.max(1, Math.floor(boxH / lineHeight))
+  let lines = 0
+  let current = 0
+  for (const char of content) {
+    if (char === '\n') {
+      lines += 1
+      current = 0
+      continue
+    }
+    const width = /[\u4e00-\u9fa5]/.test(char) ? 1 : 0.6
+    if (current + width > charsPerLine) {
+      lines += 1
+      current = width
+      if (lines >= maxLines) return true
+    } else {
+      current += width
+    }
+  }
+  return lines + 1 > maxLines
 }
 
 export function nodeGeometry(
@@ -90,28 +148,45 @@ export function nodeGeometry(
   }
 }
 
-/**
- * 让文字尽量放进气泡：先按基础字号估算所需行数，
- * 放不下就等比缩小字号；缩到 11px 仍放不下则由 CSS 省略号截断。
- */
-export function fittedFontSize(text: string, radius: number, base: number): number {
-  const content = text.trim()
-  if (!content) return base
-  const availW = 2 * radius * 0.78
-  const availH = 2 * radius * 0.74
-  const charsPerLine = Math.max(1, Math.floor(availW / (base * 0.62)))
-  const lines = Math.max(1, Math.ceil(content.length / charsPerLine))
-  const needed = lines * base * 1.24
-  if (needed <= availH) return base
-  const scale = Math.sqrt(availH / needed)
-  return Math.max(11, Math.min(base, Math.floor(base * scale)))
+
+/** 气泡排版共享参数：展示层与编辑层必须完全一致（D76） */
+export const BUBBLE_LINE_HEIGHT = 1.25
+
+export function bubbleTextStyle(node: BubbleNode, depth: number): Record<string, string | number> {
+  const fontSize = node.style?.fontSize ?? fontSizeOf(node, 'bubble', depth)
+  return {
+    fontSize,
+    lineHeight: BUBBLE_LINE_HEIGHT,
+    fontFamily: node.style?.fontFamily ?? 'inherit',
+    fontWeight: node.style?.bold ? 700 : 400,
+    fontStyle: node.style?.italic ? 'italic' : 'normal',
+    textDecoration: node.style?.underline ? 'underline' : 'none',
+    color: node.style?.textColor ?? 'inherit',
+    textAlign: 'center',
+    wordBreak: 'break-word'
+  }
 }
 
-/** 文本是否可能被截断（用于决定是否加省略号类） */
-export function textOverflows(text: string, radius: number, fontSize: number): boolean {
+/** 估算在给定盒子里排几行（编辑层垂直居中用） */
+export function countLinesInBox(text: string, boxW: number, fontSize: number): number {
   const content = text.trim()
-  if (!content) return false
-  const charsPerLine = Math.max(1, Math.floor((2 * radius * 0.78) / (fontSize * 0.62)))
-  const lines = Math.ceil(content.length / charsPerLine)
-  return lines * fontSize * 1.24 > 2 * radius * 0.74
+  if (!content) return 1
+  const charsPerLine = Math.max(1, Math.floor(boxW / (fontSize * 0.62)))
+  let lines = 1
+  let current = 0
+  for (const char of content) {
+    if (char === '\n') {
+      lines += 1
+      current = 0
+      continue
+    }
+    const width = /[\u4e00-\u9fa5]/.test(char) ? 1 : 0.6
+    if (current + width > charsPerLine) {
+      lines += 1
+      current = width
+    } else {
+      current += width
+    }
+  }
+  return lines
 }

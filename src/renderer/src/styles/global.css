@@ -169,8 +169,9 @@
   text-align: center;
   color: var(--sl-text);
   line-height: 1.25;
-  padding: 0 6px;
+  padding: 0;
   overflow: hidden;
+  word-break: break-word;
   word-break: break-word;
   white-space: pre-wrap;
   pointer-events: none;
@@ -179,8 +180,9 @@
 .sl-bubble-text.clamp {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
   overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: 100%;
 }
 
 /* 内联编辑器 */
@@ -849,4 +851,245 @@
   border-radius: 4px;
   background: transparent;
   cursor: pointer;
+}
+
+
+/* 顶部文字编辑区（D66） */
+.sl-formula-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  flex: 0 0 34px;
+  padding: 0 10px;
+  background: #fff;
+  border-bottom: 1px solid rgba(91, 111, 214, 0.14);
+  position: relative;
+  z-index: 40;
+}
+
+.sl-formula-font {
+  position: relative;
+  padding: 4px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(91, 111, 214, 0.25);
+  font-size: 12.5px;
+  color: #4a5270;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.sl-formula-font:hover,
+.sl-formula-font.open {
+  background: rgba(91, 111, 214, 0.08);
+  color: var(--sl-accent);
+}
+
+.sl-font-pop {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  width: 260px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid rgba(91, 111, 214, 0.2);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(35, 45, 90, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 200;
+  cursor: default;
+}
+
+.sl-font-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #5c6480;
+}
+
+.sl-font-row > span {
+  width: 34px;
+  flex: 0 0 34px;
+}
+
+.sl-font-row select,
+.sl-font-row input[type='color'] {
+  flex: 1;
+  height: 26px;
+  border: 1px solid #d6dbe8;
+  border-radius: 6px;
+  background: #fbfcff;
+  font-size: 12px;
+}
+
+.sl-font-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.sl-fmt {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #d6dbe8;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.sl-fmt.active {
+  background: var(--sl-accent);
+  border-color: var(--sl-accent);
+  color: #fff;
+}
+
+.sl-formula-input {
+  flex: 1;
+  height: 24px;
+  border: 1px solid rgba(91, 111, 214, 0.18);
+  border-radius: 6px;
+  padding: 0 8px;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+  background: #fbfcff;
+}
+
+.sl-formula-input:focus {
+  border-color: var(--sl-accent);
+  background: #fff;
+}
+
+.sl-formula-input:disabled {
+  background: #f4f5f9;
+  color: #a2a9bf;
+}
+
+
+/* 字号控件（D71） */
+.sl-size-box {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+}
+
+.sl-size-input {
+  flex: 1;
+  width: 100%;
+  height: 26px;
+  border: 1px solid #d6dbe8;
+  border-radius: 6px 0 0 6px;
+  background: #fbfcff;
+  font-size: 12px;
+  padding: 0 6px;
+  outline: none;
+}
+
+.sl-size-input:focus {
+  border-color: var(--sl-accent);
+  background: #fff;
+}
+
+.sl-size-caret {
+  height: 26px;
+  width: 22px;
+  border: 1px solid #d6dbe8;
+  border-left: none;
+  border-radius: 0 6px 6px 0;
+  background: #fff;
+  cursor: pointer;
+  font-size: 10px;
+  color: #5c6480;
+}
+
+.sl-size-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: #fff;
+  border: 1px solid rgba(91, 111, 214, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(35, 45, 90, 0.16);
+  display: grid;
+  grid-template-columns: repeat(3, 40px);
+  gap: 2px;
+  padding: 6px;
+  z-index: 300;
+}
+
+.sl-size-menu button {
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  height: 24px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #4a5270;
+}
+
+.sl-size-menu button:hover {
+  background: rgba(91, 111, 214, 0.12);
+}
+
+.sl-formula-font-title {
+  display: inline-block;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+
+.sl-formula-font-title.locked {
+  background: rgba(91, 111, 214, 0.14);
+  color: var(--sl-accent);
+  font-weight: 600;
+}
+
+
+/* 气泡文字 tooltip（D73） */
+.sl-bubble-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  width: 300px;
+  height: 120px;
+  padding: 8px 10px;
+  box-sizing: border-box;
+  background: rgba(38, 44, 66, 0.94);
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(20, 26, 48, 0.28);
+  pointer-events: auto;
+  cursor: text;
+  z-index: 60;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sl-bubble-tooltip.editing {
+  cursor: text;
+  white-space: normal;
+}
+
+.sl-tip-text {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  outline: none;
+  cursor: text;
+  user-select: text;
+}
+
+.sl-tip-input {
+  display: block;
+  font: inherit;
 }

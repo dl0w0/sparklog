@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultFileStem, displayName, fileBaseName, windowTitle } from '@renderer/logic/title'
-import { fittedFontSize, fontSizeOf, radiusOf, shapeOf, textOverflows } from '@renderer/logic/nodeVisual'
+import { fontSizeOf, radiusOf, shapeOf, textBoxOf, textOverflowsInBox } from '@renderer/logic/nodeVisual'
 import { createEmptyDocument } from '@shared/logic/documentCodec'
 import { makeNode } from '../helpers'
 
@@ -52,28 +52,46 @@ describe('气泡视觉换算', () => {
   it('字号随半径增长且有上下界', () => {
     const small = makeNode('s', [], { x: 0, y: 0 }, { importance: 1 })
     const big = makeNode('b', [], { x: 0, y: 0 }, { importance: 100 })
-    expect(fontSizeOf(big, 'bubble')).toBeGreaterThan(fontSizeOf(small, 'bubble'))
+    // D74：字号只由层级默认值 + style 覆盖决定，不随 importance 变化
+    expect(fontSizeOf(big, 'bubble')).toBe(fontSizeOf(small, 'bubble'))
+    expect(fontSizeOf(big, 'mindmap')).toBe(fontSizeOf(small, 'mindmap'))
   })
 })
 
-describe('文字自适应（PRD 9.2）', () => {
-  it('短文本不缩小', () => {
-    expect(fittedFontSize('短', 60, 16)).toBe(16)
+describe('文字可用区域（D75）', () => {
+  it('圆形气泡取内接矩形，四角仍在圆内', () => {
+    const box = textBoxOf('circle', { rx: 100, ry: 100 }, 10)
+    const cornerX = box.w / 2
+    const cornerY = box.h / 2
+    expect(Math.hypot(cornerX, cornerY)).toBeLessThanOrEqual(100)
+    // 且明显小于外接方形（不是只受外接方形约束）
+    expect(box.w).toBeLessThan(100 * 2)
   })
 
-  it('长文本缩小字号但不低于 11', () => {
-    const long = '这是一段很长很长的文字'.repeat(12)
-    const size = fittedFontSize(long, 50, 20)
-    expect(size).toBeGreaterThanOrEqual(11)
-    expect(size).toBeLessThan(20)
+  it('椭圆气泡宽高都受形状约束', () => {
+    const box = textBoxOf('ellipse', { rx: 120, ry: 60 }, 8)
+    expect(box.w).toBeLessThan(240)
+    expect(box.h).toBeLessThan(120)
+    // 椭圆方程校验：四角落在椭圆内
+    const { rx, ry } = { rx: 120 - 8, ry: 60 - 8 }
+    const inside = (box.w / 2 / rx) ** 2 + (box.h / 2 / ry) ** 2
+    expect(inside).toBeLessThanOrEqual(1.000001)
   })
 
-  it('空文本使用基础字号', () => {
-    expect(fittedFontSize('  ', 50, 18)).toBe(18)
+  it('圆角矩形按内边距内缩', () => {
+    const box = textBoxOf('roundedRect', { rx: 100, ry: 50 }, 10)
+    expect(box).toEqual({ w: 180, h: 80 })
   })
 
-  it('溢出判定与省略号类一致', () => {
-    expect(textOverflows('短', 60, 14)).toBe(false)
-    expect(textOverflows('很长'.repeat(60), 40, 14)).toBe(true)
+  it('短文本不截断，长文本截断', () => {
+    const box = textBoxOf('circle', { rx: 60, ry: 60 }, 10)
+    expect(textOverflowsInBox('短', box.w, box.h, 16)).toBe(false)
+    expect(textOverflowsInBox('很长的文字'.repeat(40), box.w, box.h, 16)).toBe(true)
+  })
+
+  it('中英文混排按宽度估算', () => {
+    const box = textBoxOf('circle', { rx: 60, ry: 60 }, 10)
+    const mixed = 'hello 世界 hello 世界 hello 世界 hello 世界'
+    expect(typeof textOverflowsInBox(mixed, box.w, box.h, 14)).toBe('boolean')
   })
 })

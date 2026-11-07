@@ -168,6 +168,19 @@ export function countUniqueDescendants(id: string): number {
   return uniqueDescendantsOf(useDocStore.getState().doc.nodes, id).length
 }
 
+/** 公式栏实时输入：先进入瞬时状态，失焦后一次性入栈（D66） */
+export function applyTextTransient(id: string, text: string): void {
+  const store = useDocStore.getState()
+  store.beginTransient()
+  store.applyTransient((d) => {
+    d.nodes = setNodeText(d.nodes, id, text, new Date().toISOString())
+  })
+}
+
+export function commitTransientText(): void {
+  useDocStore.getState().pushTransient('编辑文字')
+}
+
 export function commitText(id: string, text: string): void {
   const store = useDocStore.getState()
   const node = store.doc.nodes.find((n) => n.id === id)
@@ -346,7 +359,20 @@ export function adjustImportanceMany(ids: readonly string[], delta: number): voi
 }
 
 /** 批量改形状/配色（形状面板与主题面板复用） */
-export function setStyleMany(ids: readonly string[], patch: { shape?: BubbleNode['shape']; colorKey?: string }): void {
+export function setStyleMany(
+  ids: readonly string[],
+  patch: {
+    shape?: BubbleNode['shape']
+    colorKey?: string
+    fontFamily?: string
+    fontSize?: number
+    bold?: boolean
+    italic?: boolean
+    underline?: boolean
+    textColor?: string
+    highlight?: string
+  }
+): void {
   const store = useDocStore.getState()
   const set = new Set(ids)
   store.commit('修改气泡样式', (d) => {
@@ -359,6 +385,13 @@ export function setStyleMany(ids: readonly string[], patch: { shape?: BubbleNode
       if (patch.colorKey) {
         node.colorKey = patch.colorKey
         node.style = { ...(node.style ?? {}), colorKey: patch.colorKey }
+      }
+      const extra: Record<string, unknown> = {}
+      for (const key of ['fontFamily', 'fontSize', 'bold', 'italic', 'underline', 'textColor', 'highlight'] as const) {
+        if (patch[key] !== undefined) extra[key] = patch[key]
+      }
+      if (Object.keys(extra).length > 0) {
+        node.style = { ...(node.style ?? {}), ...extra }
       }
     }
   })

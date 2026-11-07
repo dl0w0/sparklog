@@ -35,7 +35,8 @@ const DEFAULTS: Required<PhysicsOptions> = {
   stiffness: 0.08,
   repulsion: 0.28,
   padding: 14,
-  damping: 0.86,
+  // D68：阻尼调大 → 更快收敛、抖动更小，过程仍平滑
+  damping: 0.7,
   maxSpeed: 48,
   cellSize: 180
 }

@@ -9,6 +9,8 @@ import { copySelection, copyStyle, cutSelection, pasteBubbles, pasteStyle } from
 import { setStyleMany } from '@renderer/actions/bubbleActions'
 import { addInsert, pickAndAttach } from '@renderer/actions/insertActions'
 import { applyThemePreset } from '@renderer/actions/themeActions'
+import { selectBranchSet } from '@renderer/actions/bubbleActions'
+import { selectAllInLevel } from '@renderer/actions/clipboardActions'
 import { buildViewEdges, entityGeometry } from '@renderer/logic/links'
 import {
   applyEdgeStyle,
@@ -135,10 +137,32 @@ export function buildBlankMenu(position: { x: number; y: number; world?: { x: nu
       id: 'select',
       label: '☑ 选择',
       children: [
+        { id: 'sel-zones', label: `所有专区（${useDocStore.getState().doc.zones.length}）`, disabled: true },
         {
-          id: 'select-panel',
-          label: '打开选择面板…',
-          onClick: () => ui.openDialog({ kind: 'select', bubbleId: null })
+          id: 'sel-notes',
+          label: `所有笔记（${useDocStore.getState().doc.inserts.filter((i) => i.kind === 'note').length}）`,
+          disabled: true
+        },
+        {
+          id: 'sel-tasks',
+          label: `所有任务（${useDocStore.getState().doc.inserts.filter((i) => i.kind === 'task').length}）`,
+          disabled: true
+        },
+        {
+          id: 'sel-attachments',
+          label: `所有附件（${useDocStore.getState().doc.inserts.filter((i) => i.kind === 'attachment').length}）`,
+          disabled: true
+        },
+        {
+          id: 'sel-images',
+          label: `所有图片（${useDocStore.getState().doc.inserts.filter((i) => i.kind === 'image').length}）`,
+          disabled: true
+        },
+        {
+          id: 'sel-all',
+          label: '全选',
+          shortcut: 'Ctrl+A',
+          onClick: () => selectAllInLevel()
         }
       ]
     },
@@ -216,9 +240,30 @@ export function buildBubbleMenu(bubbleId: string, world?: { x: number; y: number
       label: '☑ 选择',
       children: [
         {
-          id: 'select-panel',
-          label: '打开选择面板…',
-          onClick: () => ui.openDialog({ kind: 'select', bubbleId })
+          id: 'sel-siblings',
+          label: `所有并列气泡（${selectBranchSet('siblings', bubbleId).length}）`,
+          onClick: () => useSelectionStore.getState().selectMany(selectBranchSet('siblings', bubbleId))
+        },
+        {
+          id: 'sel-unique',
+          label: `所有独有子气泡（${selectBranchSet('uniqueDescendants', bubbleId).length}）`,
+          onClick: () => useSelectionStore.getState().selectMany(selectBranchSet('uniqueDescendants', bubbleId))
+        },
+        {
+          id: 'sel-desc',
+          label: `所有子气泡（${selectBranchSet('descendants', bubbleId).length}）`,
+          onClick: () => useSelectionStore.getState().selectMany(selectBranchSet('descendants', bubbleId))
+        },
+        {
+          id: 'sel-anc',
+          label: `所有父级气泡（${selectBranchSet('ancestors', bubbleId).length}）`,
+          onClick: () => useSelectionStore.getState().selectMany(selectBranchSet('ancestors', bubbleId))
+        },
+        {
+          id: 'sel-all',
+          label: '全选',
+          shortcut: 'Ctrl+A',
+          onClick: () => selectAllInLevel()
         }
       ]
     },
@@ -425,13 +470,134 @@ export function buildInsertMenu(insertId: string): MenuNode[] {
 }
 
 export function menuFor(
-  target: { bubbleId: string | null; zoneId?: string | null; edgeId?: string | null; insertId?: string | null },
+  target: {
+    bubbleId: string | null
+    zoneId?: string | null
+    edgeId?: string | null
+    insertId?: string | null
+    textNodeId?: string | null
+  },
   position: { x: number; y: number; world?: { x: number; y: number } }
 ): MenuNode[] {
+  if (target.textNodeId) return buildTextFormatMenu(target.textNodeId)
   if (target.edgeId) return buildEdgeMenu(target.edgeId)
   if (target.insertId) return buildInsertMenu(target.insertId)
   if (target.zoneId) return buildZoneMenu(target.zoneId)
   return target.bubbleId
     ? buildBubbleMenu(target.bubbleId, position.world)
     : buildBlankMenu(position)
+}
+
+
+/** 内联编辑中选中文字时的格式菜单（D72），功能对齐 Word 常用项 */
+export function buildTextFormatMenu(nodeId: string): MenuNode[] {
+  const doc = useDocStore.getState().doc
+  const node = doc.nodes.find((n) => n.id === nodeId)
+  if (!node) return []
+  const style = node.style ?? {}
+  const patch = (value: Parameters<typeof setStyleMany>[1]): void => setStyleMany([nodeId], value)
+
+  const clipboardInsert = async (mode: 'cut' | 'copy' | 'paste'): Promise<void> => {
+    try {
+      if (mode === 'paste') {
+        const text = await navigator.clipboard.readText()
+        if (text) document.execCommand('insertText', false, text)
+        return
+      }
+      document.execCommand(mode)
+    } catch {
+      // 剪贴板不可用时静默失败
+    }
+  }
+
+  return [
+    { id: 'tx-cut', label: '剪切', shortcut: 'Ctrl+X', onClick: () => void clipboardInsert('cut') },
+    { id: 'tx-copy', label: '复制', shortcut: 'Ctrl+C', onClick: () => void clipboardInsert('copy') },
+    { id: 'tx-paste', label: '粘贴', shortcut: 'Ctrl+V', onClick: () => void clipboardInsert('paste') },
+    { id: 'tx-sep1', label: '', separator: true },
+    {
+      id: 'tx-font',
+      label: '字体',
+      children: [
+        { id: 'tx-font-default', label: '默认', onClick: () => patch({ fontFamily: undefined }) },
+        { id: 'tx-font-yahei', label: '微软雅黑', onClick: () => patch({ fontFamily: '"Microsoft YaHei UI", sans-serif' }) },
+        { id: 'tx-font-song', label: '宋体', onClick: () => patch({ fontFamily: 'SimSun, serif' }) },
+        { id: 'tx-font-hei', label: '黑体', onClick: () => patch({ fontFamily: 'SimHei, sans-serif' }) },
+        { id: 'tx-font-kai', label: '楷体', onClick: () => patch({ fontFamily: 'KaiTi, serif' }) }
+      ]
+    },
+    {
+      id: 'tx-size',
+      label: '字号',
+      children: [11, 12, 13, 14, 16, 18, 20, 24, 28].map((size) => ({
+        id: `tx-size-${size}`,
+        label: String(size),
+        onClick: () => patch({ fontSize: size })
+      }))
+    },
+    {
+      id: 'tx-bold',
+      label: style.bold ? '取消加粗' : '加粗',
+      shortcut: 'Ctrl+B',
+      onClick: () => patch({ bold: !style.bold })
+    },
+    {
+      id: 'tx-italic',
+      label: style.italic ? '取消斜体' : '斜体',
+      shortcut: 'Ctrl+I',
+      onClick: () => patch({ italic: !style.italic })
+    },
+    {
+      id: 'tx-underline',
+      label: style.underline ? '取消下划线' : '下划线',
+      shortcut: 'Ctrl+U',
+      onClick: () => patch({ underline: !style.underline })
+    },
+    {
+      id: 'tx-color',
+      label: '文字颜色',
+      children: [
+        ...['#2a3050', '#d64545', '#2f7d4f', '#3a63c8', '#8a4fd3', '#c07a1e'].map((color, index) => ({
+          id: `tx-color-${index}`,
+          label: color,
+          onClick: () => patch({ textColor: color })
+        })),
+        {
+          id: 'tx-color-custom',
+          label: '自定义…',
+          colorInput: {
+            value: style.textColor ?? '#2a3050',
+            onChange: (value: string) => patch({ textColor: value })
+          }
+        }
+      ]
+    },
+    {
+      id: 'tx-highlight',
+      label: '高亮',
+      children: [
+        ...['#fff3a8', '#c9f2d4', '#cfe0ff', '#ffd9e2', '#e8e2ff'].map((color, index) => ({
+          id: `tx-hl-${index}`,
+          label: color,
+          onClick: () => patch({ highlight: color })
+        })),
+        { id: 'tx-hl-none', label: '无高亮', onClick: () => patch({ highlight: undefined }) }
+      ]
+    },
+    { id: 'tx-sep2', label: '', separator: true },
+    {
+      id: 'tx-clear',
+      label: '清除格式',
+      onClick: () =>
+        patch({
+          fontFamily: undefined,
+          fontSize: undefined,
+          bold: undefined,
+          italic: undefined,
+          underline: undefined,
+          textColor: undefined,
+          highlight: undefined
+        })
+    }
+  ]
 }

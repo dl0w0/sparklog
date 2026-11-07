@@ -1,7 +1,17 @@
-import { memo } from 'react'
+import { memo, useRef } from 'react'
 import type { BubbleNode as BubbleNodeData, Vec2, ViewMode } from '@shared/types/document'
-import { fittedFontSize, fontSizeOf, isRootNode, shapeOf, textOverflows } from '@renderer/logic/nodeVisual'
+import {
+  bubbleTextStyle,
+  fontSizeOf,
+  isRootNode,
+  shapeOf,
+  textBoxOf,
+  textOverflowsInBox
+} from '@renderer/logic/nodeVisual'
 import { shapeMetrics } from '@renderer/logic/bubbleMetrics'
+import { BUBBLE_TEXT_PADDING } from '@shared/constants'
+
+const LONG_HOVER_MS = 650
 
 export interface BubbleNodeProps {
   node: BubbleNodeData
@@ -20,6 +30,14 @@ export interface BubbleNodeProps {
   onToggle?: (id: string) => void
   /** 正在内联编辑：不再渲染文字层，避免重影（D43） */
   editing?: boolean
+  /** 层级深度，用于默认字号递减（D65） */
+  depth?: number
+  /** 悬停回调（D73 tooltip） */
+  onHover?: (id: string | null) => void
+  /** 悬停在省略号上（D80） */
+  onEllipsisHover?: (id: string | null) => void
+  /** 长时间悬浮（D80） */
+  onLongHover?: (id: string | null) => void
 }
 
 function BubbleNodeImpl({
@@ -36,14 +54,30 @@ function BubbleNodeImpl({
   toggleCollapsed,
   toggleCount,
   onToggle,
-  editing
+  editing,
+  depth = 0,
+  onHover,
+  onEllipsisHover,
+  onLongHover
 }: BubbleNodeProps): JSX.Element {
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const shape = shapeOf(node)
   const metrics = shapeMetrics(shape, radius)
   const root = isRootNode(node)
-  const baseFont = node.style?.fontSize ?? fontSizeOf(node, mode)
-  const fontSize = fittedFontSize(node.text, radius, baseFont)
-  const clamp = textOverflows(node.text, radius, fontSize)
+  // 字号只由层级默认值 + style 覆盖决定，不随半径/缩放变化（D74）
+  const fontSize = node.style?.fontSize ?? fontSizeOf(node, mode, depth)
+  const padding = BUBBLE_TEXT_PADDING
+  // 文字区 = 气泡真实形状的内接矩形（D75），四角不会压到圆弧
+  const textBox = textBoxOf(shape, metrics, padding)
+  const clamp = textOverflowsInBox(node.text, textBox.w, textBox.h, fontSize)
+  const maxLines = Math.max(1, Math.floor(textBox.h / (fontSize * 1.3)))
+  const shared = bubbleTextStyle(node, depth)
+  const textStyle: React.CSSProperties = {
+    ...shared,
+    fontSize: `${fontSize}px`,
+    background: node.style?.highlight,
+    padding: 0
+  }
 
   const classes = ['sl-bubble', root ? 'is-root' : '', selected ? 'is-selected' : '', node.collapsed ? 'is-collapsed' : '']
     .filter(Boolean)
@@ -54,6 +88,17 @@ function BubbleNodeImpl({
 
   return (
     <g
+      onPointerEnter={() => {
+        onHover?.(node.id)
+        if (clamp) {
+          longPressTimer.current = setTimeout(() => onLongHover?.(node.id), LONG_HOVER_MS)
+        }
+      }}
+      onPointerLeave={() => {
+        onHover?.(null)
+        if (longPressTimer.current) clearTimeout(longPressTimer.current)
+        onLongHover?.(null)
+      }}
       data-bubble-id={node.id}
       className={classes}
       transform={`translate(${pos.x} ${pos.y})`}
@@ -141,15 +186,32 @@ function BubbleNodeImpl({
       )}
 
       {!editing && (
-      <foreignObject x={-metrics.rx} y={-metrics.ry} width={metrics.rx * 2} height={metrics.ry * 2}>
+      <foreignObject x={-textBox.w / 2} y={-textBox.h / 2} width={textBox.w} height={textBox.h}>
         <div
           className={`sl-bubble-text${clamp ? ' clamp' : ''}`}
-          style={{ fontSize: `${fontSize}px` }}
-          title={node.text}
+          style={{ ...textStyle, padding: 0, WebkitLineClamp: clamp ? maxLines : undefined }}
+          title={clamp ? node.text : undefined}
         >
           {node.text || ' '}
         </div>
       </foreignObject>
+      )}
+      {!editing && clamp && (
+        <rect
+          className="sl-ellipsis-hit"
+          x={textBox.w / 2 - Math.max(18, fontSize * 1.2)}
+          y={textBox.h / 2 - fontSize * 1.2}
+          width={Math.max(18, fontSize * 1.2)}
+          height={fontSize * 1.2}
+          fill="transparent"
+          onPointerEnter={(e) => {
+            e.stopPropagation()
+            // 悬停省略号走「即时显示」通道，不算长按（D80）
+            if (longPressTimer.current) clearTimeout(longPressTimer.current)
+            onEllipsisHover?.(node.id)
+          }}
+          onPointerLeave={() => onEllipsisHover?.(null)}
+        />
       )}
     </g>
   )

@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useShortcuts } from '@renderer/hooks/useShortcuts'
 import { executeMenuCommand } from '@renderer/actions/commands'
-import { openIntoWorkspace, requestClose } from '@renderer/actions/fileActions'
+import { openIntoWorkspace, requestClose, seedStartingBubble } from '@renderer/actions/fileActions'
 import { api } from '@renderer/services/bridge'
 import { themeVars } from '@renderer/logic/theme'
 import { useDocStore } from '@renderer/store/docStore'
@@ -12,6 +12,7 @@ import StatusBar from './StatusBar'
 import SearchBar from './SearchBar'
 import BatchActionBar from './BatchActionBar'
 import Breadcrumb from './Breadcrumb'
+import FormulaBar from './FormulaBar'
 import ContextMenu from './ContextMenu'
 import Dialogs from './dialogs/Dialogs'
 import { menuFor } from './menuItems'
@@ -32,7 +33,12 @@ export function WorkspaceView(): JSX.Element {
   useEffect(() => {
     void (async () => {
       const ctx = await api().getWindowContext()
-      if (ctx.kind !== 'workspace' || !ctx.filePath) return
+      if (ctx.kind !== 'workspace') return
+      if (!ctx.filePath) {
+        // 从开始页「新建空白画布」进入：空画布补一个起点气泡（D61）
+        seedStartingBubble()
+        return
+      }
       const res = await api().readDocument(ctx.filePath)
       if (res.ok && res.doc) openIntoWorkspace(res.doc, ctx.filePath, res.warnings)
       else if (res.error) useUiStore.getState().openDialog({ kind: 'error', message: res.error })
@@ -44,6 +50,7 @@ export function WorkspaceView(): JSX.Element {
       <div className="sl-workspace">
         <SideToolbar />
         <div className="sl-main">
+          <FormulaBar />
           <div style={{ position: 'relative', flex: 1, minHeight: 0, display: 'flex' }}>
             <CanvasStage />
             <Breadcrumb />
@@ -59,7 +66,7 @@ export function WorkspaceView(): JSX.Element {
           x={contextMenu.x}
           y={contextMenu.y}
           items={menuFor(
-            { bubbleId: contextMenu.bubbleId, zoneId: contextMenu.zoneId, edgeId: contextMenu.edgeId, insertId: contextMenu.insertId },
+            { bubbleId: contextMenu.bubbleId, zoneId: contextMenu.zoneId, edgeId: contextMenu.edgeId, insertId: contextMenu.insertId, textNodeId: contextMenu.textNodeId },
             { x: contextMenu.x, y: contextMenu.y, world: contextMenu.world }
           )}
           onClose={closeContextMenu}

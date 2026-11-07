@@ -20,6 +20,12 @@ test.describe('v1.0 核心闭环', () => {
       await expect(start.getByText('新建空白画布')).toBeVisible()
 
       const ws = await openWorkspace(h.app)
+      // D61：新画布自带一个起点气泡；清掉它验证空态提示
+      await expect.poll(async () => bubbleCount(ws)).toBe(1)
+      await ws.keyboard.press('Escape')
+      await ws.locator('[data-bubble-id]').first().click({ force: true })
+      await ws.keyboard.press('Delete')
+      await expect.poll(async () => bubbleCount(ws)).toBe(0)
       await expect(ws.locator('.sl-empty-hint')).toBeVisible()
 
       await createRootBubble(ws, '第一个想法')

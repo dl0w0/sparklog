@@ -32,6 +32,15 @@ export interface BubbleStyle {
   colorKey?: string
   fontSize?: number
   strokeWidth?: number
+  /** 字体族（D66） */
+  fontFamily?: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  /** 文字颜色 */
+  textColor?: string
+  /** 文字高亮底色 */
+  highlight?: string
 }
 
 export interface BubbleNode {

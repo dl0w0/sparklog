@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { BUBBLE_PADDING, CULL_MARGIN, DEFAULT_VIEWPORT } from '@shared/constants'
 import type { BubbleNode as BubbleNodeData, Edge, Vec2 } from '@shared/types/document'
 import { ancestorsOf, deriveEdges, descendantsOf, nodesInZone, subtreeIds } from '@renderer/logic/graph'
 import { cullVisible } from '@renderer/logic/layout/culling'
 import { layoutMindmap } from '@renderer/logic/layout/mindmapLayout'
 import { screenToWorld } from '@renderer/logic/layout/fitView'
-import { buildEdgeGeometry, pointOnShape } from '@renderer/logic/geometry'
-import { makeRadiusResolver, shapeOf } from '@renderer/logic/nodeVisual'
+import { bezierToPath, buildEdgeGeometry, pointOnShape } from '@renderer/logic/geometry'
+import { computeDepths, makeRadiusResolver, shapeOf } from '@renderer/logic/nodeVisual'
 import { buildSprings, isSettled, stepPhysics, type PhysicsBody, type Spring } from '@renderer/logic/physics'
 import { resolveLinkLengths } from '@renderer/logic/linkLength'
 import {
@@ -34,9 +34,12 @@ import { registerCanvasController } from '@renderer/actions/commands'
 import { recordFrame } from '@renderer/services/perfMeter'
 import { createZoneAt, ensureValidLevel, exitZone, moveBubbleIntoZone } from '@renderer/actions/zoneActions'
 import { insertDisplayPos } from '@renderer/actions/insertActions'
+import { insertRadius } from '@renderer/logic/fitBounds'
+import { tidyPositions } from '@renderer/logic/tidy'
 import BubbleNode from './BubbleNode'
 import EdgeLayer from './EdgeLayer'
 import InlineEditor from './InlineEditor'
+import BubbleTextTip from './BubbleTextTip'
 import EmptyCanvasHint from './EmptyCanvasHint'
 import InsertLayer from './InsertLayer'
 import ZoneLayer from './ZoneLayer'
@@ -120,11 +123,66 @@ export function CanvasStage(): JSX.Element {
   const svgRef = useRef<SVGSVGElement>(null)
   const gRef = useRef<SVGGElement>(null)
   const dragRef = useRef<DragSession | null>(null)
+  const snapshotRef = useRef<{
+    mode: 'bubble' | 'mindmap'
+    positions: Map<string, Vec2>
+    radii: Map<string, number>
+    styles: Map<string, BubbleNodeData['shape']>
+  } | null>(null)
+  const transitionRef = useRef<number | null>(null)
+  const suppressContextRef = useRef(false)
+  const [hoverNodeId, setHoverNodeId] = useState<string | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const setHoverDelayed = useCallback((id: string | null) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    if (id) {
+      setHoverNodeId(id)
+      return
+    }
+    // 留出时间把鼠标移到上方文本框（D77）
+    hoverTimerRef.current = setTimeout(() => setHoverNodeId(null), 260)
+  }, [])
+  const [tipEditingId, setTipEditingId] = useState<string | null>(null)
+  const [tipNodeId, setTipNodeId] = useState<string | null>(null)
+  const tipHoldRef = useRef(false)
+  const tipHoverRef = useRef(false)
+
+  /** D80：文本框只在 ①省略号悬停 ②长按气泡 ③双击进入编辑 时出现 */
+  const showTipFromHover = useCallback((id: string | null) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    if (id) {
+      tipHoldRef.current = false
+      setTipNodeId(id)
+      return
+    }
+    // 省略号通道：离开即收起（不占用长按的宽限）
+    if (!tipHoldRef.current && !useSelectionStore.getState().editingId) {
+      tipHoldRef.current = false
+      setTipNodeId(null)
+    }
+  }, [])
+
+  const showTipFromLongHover = useCallback((id: string | null) => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    if (id) {
+      tipHoldRef.current = true
+      setTipNodeId(id)
+      return
+    }
+    // 离开气泡后给 300ms 移到文本框上；没移过去就收起
+    hoverTimerRef.current = setTimeout(() => {
+      if (!tipHoverRef.current && !useSelectionStore.getState().editingId) {
+        tipHoldRef.current = false
+        setTipNodeId(null)
+      }
+    }, 300)
+  }, [])
   const [size, setSize] = useState({ w: 1000, h: 700 })
   const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
   const zoneId = levelId === ROOT_LEVEL ? null : levelId
   const radiusOfNode = useMemo(() => makeRadiusResolver(doc.nodes, viewMode), [doc.nodes, viewMode])
+  const depthOf = useMemo(() => computeDepths(doc.nodes), [doc.nodes])
 
   // 层级失效守卫：当前专区被删除/撤销掉时退回主画布
   useEffect(() => {
@@ -269,6 +327,110 @@ export function CanvasStage(): JSX.Element {
     return map
   }, [levelNodes, shownNodes, layout, viewMode])
 
+  // —— 视图切换插值动画（D59） ——
+  useLayoutEffect(() => {
+    const current = {
+      mode: viewMode,
+      positions: layout.positions,
+      radii: new Map(shownNodes.map((n) => [n.id, radiusOfNode(n)] as const)),
+      styles: new Map(shownNodes.map((n) => [n.id, shapeOf(n)] as const))
+    }
+    const prev = snapshotRef.current
+    snapshotRef.current = current
+    if (!prev || prev.mode === viewMode) return
+    const svg = svgRef.current
+    if (!svg) return
+
+    if (transitionRef.current !== null) cancelAnimationFrame(transitionRef.current)
+    const duration = 280
+    const started = performance.now()
+    const from = prev
+    const to = current
+
+    const apply = (t: number): void => {
+      // 测试观测点：记录插值进度（生产环境无副作用）
+      const probe = (globalThis as unknown as { __slAnimLog?: string[] }).__slAnimLog
+      if (Array.isArray(probe)) probe.push(t.toFixed(3))
+      for (const node of shownNodes) {
+        const a = from.positions.get(node.id)
+        const b = to.positions.get(node.id)
+        const el = svg.querySelector<SVGGElement>(`[data-bubble-id="${cssEscape(node.id)}"]`)
+        if (!a || !b || !el) continue
+        const r1 = from.radii.get(node.id) ?? 1
+        const r2 = to.radii.get(node.id) ?? r1
+        const k = 1 + (r2 / r1 - 1) * t
+        el.setAttribute(
+          'transform',
+          `translate(${a.x + (b.x - a.x) * t} ${a.y + (b.y - a.y) * t}) scale(${k})`
+        )
+      }
+      for (const edge of viewEdges) {
+        const el = svg.querySelector<SVGPathElement>(`[data-edge-id="${edge.id}"]`)
+        if (!el) continue
+        const fa = from.positions.get(edge.from)
+        const fb = from.positions.get(edge.to)
+        const ta = to.positions.get(edge.from)
+        const tb = to.positions.get(edge.to)
+        if (!fa || !fb || !ta || !tb) continue
+        const pa = { x: fa.x + (ta.x - fa.x) * t, y: fa.y + (ta.y - fa.y) * t }
+        const pb = { x: fb.x + (tb.x - fb.x) * t, y: fb.y + (tb.y - fb.y) * t }
+        const ra1 = from.radii.get(edge.from) ?? 40
+        const ra2 = to.radii.get(edge.from) ?? ra1
+        const rb1 = from.radii.get(edge.to) ?? 40
+        const rb2 = to.radii.get(edge.to) ?? rb1
+        const geoA = buildEdgeGeometry(
+          { center: pa, radius: ra1 + (ra2 - ra1) * t, shape: from.styles.get(edge.from) ?? 'circle' },
+          { center: pb, radius: rb1 + (rb2 - rb1) * t, shape: from.styles.get(edge.to) ?? 'circle' },
+          from.mode
+        )
+        const geoB = buildEdgeGeometry(
+          { center: pa, radius: ra1 + (ra2 - ra1) * t, shape: to.styles.get(edge.from) ?? 'circle' },
+          { center: pb, radius: rb1 + (rb2 - rb1) * t, shape: to.styles.get(edge.to) ?? 'circle' },
+          to.mode
+        )
+        const mix = (p1: Vec2, p2: Vec2): Vec2 => ({
+          x: p1.x + (p2.x - p1.x) * t,
+          y: p1.y + (p2.y - p1.y) * t
+        })
+        el.setAttribute(
+          'd',
+          bezierToPath({
+            p0: geoA.curve.p0,
+            c1: mix(geoA.curve.c1, geoB.curve.c1),
+            c2: mix(geoA.curve.c2, geoB.curve.c2),
+            p1: geoA.curve.p1
+          })
+        )
+      }
+    }
+
+    const tick = (): void => {
+      const raw = Math.min(1, (performance.now() - started) / duration)
+      const t = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2
+      apply(t)
+      if (raw < 1) {
+        transitionRef.current = requestAnimationFrame(tick)
+        return
+      }
+      transitionRef.current = null
+      // 收尾：把 transform 还原成纯平移，交给 React 的最终渲染
+      for (const node of shownNodes) {
+        const el = svg.querySelector<SVGGElement>(`[data-bubble-id="${cssEscape(node.id)}"]`)
+        const b = to.positions.get(node.id)
+        if (el && b) el.setAttribute('transform', `translate(${b.x} ${b.y})`)
+      }
+    }
+    apply(0)
+    transitionRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (transitionRef.current !== null) {
+        cancelAnimationFrame(transitionRef.current)
+        transitionRef.current = null
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode])
+
   // —— 尺寸感知 ——
   useEffect(() => {
     const el = containerRef.current
@@ -285,14 +447,75 @@ export function CanvasStage(): JSX.Element {
   useEffect(() => {
     registerCanvasController({
       fit: () => {
-        const items = shownNodes.map((n) => ({
+        // 读实时文档：插入对象/专区可能在闭包快照之后才创建
+        const live = useDocStore.getState().doc
+        const items: { pos: Vec2; radius: number }[] = shownNodes.map((n) => ({
           pos: layout.positions.get(n.id) ?? n.bubblePos,
           radius: radiusOfNode(n)
         }))
+        for (const insert of live.inserts) {
+          if (insert.zoneId !== zoneId) continue
+          items.push({
+            pos: insertDisplayPos(insert, live.nodes, live.viewMode),
+            radius: insertRadius(insert)
+          })
+        }
+        for (const zone of live.zones) {
+          if (zone.parentZoneId !== zoneId) continue
+          items.push({
+            pos: { x: zone.pos.x + zone.size.w / 2, y: zone.pos.y + zone.size.h / 2 },
+            radius: Math.hypot(zone.size.w, zone.size.h) / 2
+          })
+        }
         useViewportStore.getState().fit(items, size)
       },
       worldCenter: () =>
         screenToWorld({ x: size.w / 2, y: size.h / 2 }, useViewportStore.getState().current()),
+      tidy: () => {
+        const state = useDocStore.getState()
+        const targets = tidyPositions(state.doc.nodes, zoneId)
+        if (targets.size === 0) return
+        const svg = svgRef.current
+        const from = new Map<string, Vec2>()
+        for (const node of shownNodes) {
+          from.set(node.id, layout.positions.get(node.id) ?? node.bubblePos)
+        }
+        const edgesToUpdate = viewEdges
+        const started = performance.now()
+        const duration = 340
+        const step = (): void => {
+          const raw = Math.min(1, (performance.now() - started) / duration)
+          const e = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2
+          const current = new Map<string, Vec2>()
+          for (const [id, a] of from) {
+            const b = targets.get(id)
+            if (!b) continue
+            const p = { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e }
+            current.set(id, p)
+            const el = svg?.querySelector<SVGGElement>(`[data-bubble-id="${cssEscape(id)}"]`)
+            el?.setAttribute('transform', `translate(${p.x} ${p.y})`)
+          }
+          for (const edge of edgesToUpdate) {
+            const el = svg?.querySelector<SVGPathElement>(`[data-edge-id="${edge.id}"]`)
+            const a = current.get(edge.from) ?? layout.positions.get(edge.from)
+            const b = current.get(edge.to) ?? layout.positions.get(edge.to)
+            if (!el || !a || !b) continue
+            const geo = buildEdgeGeometry(
+              { center: a, radius: radiusOfNode(nodesById.get(edge.from) ?? shownNodes[0]), shape: 'circle' },
+              { center: b, radius: radiusOfNode(nodesById.get(edge.to) ?? shownNodes[0]), shape: 'circle' },
+              viewMode
+            )
+            el.setAttribute('d', geo.path)
+          }
+          if (raw < 1) {
+            requestAnimationFrame(step)
+            return
+          }
+          commitPositionsAbsolute(new Map([...targets].map(([id, p]) => [id, p])))
+          useUiStore.getState().showToast('已梳理气泡')
+        }
+        requestAnimationFrame(step)
+      },
       centerOn: (id: string) => {
         const node = allNodesById.get(id)
         if (!node) return
@@ -513,14 +736,21 @@ export function CanvasStage(): JSX.Element {
       // D55：关联的插入对象参与同一套物理——钉住的固定不动，未钉住的受弹簧牵引
       const bodyMap = new Map(bodies.map((b) => [b.id, b]))
       const insertBodyEls = new Map<string, HTMLElement>()
-      for (const link of doc.links ?? []) {
+      // 注意：必须读当前 store（闭包里的 doc 可能是创建连线之前的快照）
+      const liveDoc = useDocStore.getState().doc
+      const pinnedInsertIds = new Set(liveDoc.inserts.filter((i) => i.pinned).map((i) => i.id))
+      for (const link of liveDoc.links ?? []) {
+        // D60：任一端钉住 → 这条连线不产生任何拉力
+        if (pinnedInsertIds.has(link.from) || pinnedInsertIds.has(link.to)) continue
         const ids = [link.from, link.to]
         for (const id of ids) {
           if (bodyMap.has(id)) continue
-          const ins = doc.inserts.find((i) => i.id === id)
+          const ins = liveDoc.inserts.find((i) => i.id === id)
           if (!ins || ins.zoneId !== zoneId) continue
           if (ins.ownerBubbleId) continue // 附着在气泡上的对象仍刚性跟随
-          const p = insertDisplayPos(ins, doc.nodes, doc.viewMode)
+          const p = insertDisplayPos(ins, liveDoc.nodes, liveDoc.viewMode)
+          if (ins.pinned) continue
+          origin.set(ins.id, { ...p })
           const body: PhysicsBody = {
             id: ins.id,
             x: p.x,
@@ -528,7 +758,7 @@ export function CanvasStage(): JSX.Element {
             vx: 0,
             vy: 0,
             radius: 34,
-            fixed: ins.pinned
+            fixed: false
           }
           bodies.push(body)
           bodyMap.set(ins.id, body)
@@ -935,23 +1165,22 @@ export function CanvasStage(): JSX.Element {
   )
 
   // —— 右键 ——
-  const onContextMenu = useCallback(
-    (event: React.MouseEvent): void => {
-      event.preventDefault()
+  const openMenuAt = useCallback(
+    (clientX: number, clientY: number, targetEl: Element | null): void => {
       const rect = containerRef.current?.getBoundingClientRect()
       const vpNow = useViewportStore.getState().current()
       const world = rect
-        ? screenToWorld({ x: event.clientX - rect.left, y: event.clientY - rect.top }, vpNow)
+        ? screenToWorld({ x: clientX - rect.left, y: clientY - rect.top }, vpNow)
         : { x: 0, y: 0 }
 
-      const bubbleEl = (event.target as Element | null)?.closest('[data-bubble-id]')
+      const bubbleEl = targetEl?.closest('[data-bubble-id]')
       const bubbleId = bubbleEl?.getAttribute('data-bubble-id') ?? null
       const scale = Math.max(0.05, vpNow.scale)
       const ui = useUiStore.getState()
 
       if (bubbleId) {
         useSelectionStore.getState().select(bubbleId)
-        ui.openContextMenu({ x: event.clientX, y: event.clientY, bubbleId, world })
+        ui.openContextMenu({ x: clientX, y: clientY, bubbleId, world })
         return
       }
 
@@ -964,8 +1193,8 @@ export function CanvasStage(): JSX.Element {
       })
       if (insertHit) {
         ui.openContextMenu({
-          x: event.clientX,
-          y: event.clientY,
+          x: clientX,
+          y: clientY,
           bubbleId: null,
           insertId: insertHit.id
         })
@@ -989,19 +1218,97 @@ export function CanvasStage(): JSX.Element {
       if (hitEdge) {
         useSelectionStore.getState().selectEdge(hitEdge.id)
         ui.openContextMenu({
-          x: event.clientX,
-          y: event.clientY,
+          x: clientX,
+          y: clientY,
           bubbleId: null,
           edgeId: hitEdge.id
         })
         return
       }
 
-      ui.openContextMenu({ x: event.clientX, y: event.clientY, bubbleId: null, world })
+      ui.openContextMenu({ x: clientX, y: clientY, bubbleId: null, world })
     },
     [doc, entityGeom, viewEdges, zoneId]
   )
 
+  /** 右键：框选期间抑制菜单；未形成有效框选时再按原逻辑弹出（D64） */
+  const onContextMenu = useCallback(
+    (event: React.MouseEvent): void => {
+      event.preventDefault()
+      if (suppressContextRef.current) {
+        suppressContextRef.current = false
+        return
+      }
+      openMenuAt(event.clientX, event.clientY, event.target as Element | null)
+    },
+    [openMenuAt]
+  )
+
+  /** 空白处按住右键拖动 = 框选（D64） */
+  const beginRightBox = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      const container = containerRef.current
+      if (!container) return
+      suppressContextRef.current = true
+      const rect = container.getBoundingClientRect()
+      const startX = event.clientX - rect.left
+      const startY = event.clientY - rect.top
+      let current = { x: startX, y: startY, w: 0, h: 0 }
+      let moved = false
+      const onMove = (ev: PointerEvent): void => {
+        const x = ev.clientX - rect.left
+        const y = ev.clientY - rect.top
+        if (Math.abs(x - startX) + Math.abs(y - startY) > 4) moved = true
+        if (!moved) return
+        current = {
+          x: Math.min(x, startX),
+          y: Math.min(y, startY),
+          w: Math.abs(x - startX),
+          h: Math.abs(y - startY)
+        }
+        setBox(current)
+      }
+      const onUp = (ev: PointerEvent): void => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        setBox(null)
+        if (moved && current.w > 4 && current.h > 4) {
+          const vpCur = useViewportStore.getState().current()
+          const wx = (current.x - vpCur.offsetX) / vpCur.scale
+          const wy = (current.y - vpCur.offsetY) / vpCur.scale
+          const ww = current.w / vpCur.scale
+          const wh = current.h / vpCur.scale
+          const ids = shownNodes
+            .filter((n) => {
+              const p = layout.positions.get(n.id) ?? n.bubblePos
+              return p.x >= wx && p.x <= wx + ww && p.y >= wy && p.y <= wy + wh
+            })
+            .map((n) => n.id)
+          useSelectionStore.getState().selectMany(ids)
+          if (ids.length > 0) useUiStore.getState().showToast(`框选中 ${ids.length} 个气泡`)
+          return
+        }
+        // 没形成有效框选：按原逻辑弹菜单
+        suppressContextRef.current = false
+        openMenuAt(ev.clientX, ev.clientY, document.elementFromPoint(ev.clientX, ev.clientY))
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    },
+    [layout, openMenuAt, shownNodes]
+  )
+
+
+  // 双击进入编辑时同步显示全文文本框（D80 ③）
+  useEffect(() => {
+    if (editingId) {
+      tipHoldRef.current = true
+      setTipNodeId(editingId)
+      return
+    }
+    tipHoldRef.current = false
+    setTipNodeId(null)
+  }, [editingId])
 
   const editingNode = editingId ? allNodesById.get(editingId) : null
   const editingPos = editingId ? layout.positions.get(editingId) ?? editingNode?.bubblePos ?? null : null
@@ -1012,6 +1319,11 @@ export function CanvasStage(): JSX.Element {
       className="sl-canvas"
       onPointerDown={(e) => {
         const target = e.target as Element | null
+        if (e.button === 2) {
+          if (target?.closest('[data-bubble-id]') || target?.closest('[data-zone-id]')) return
+          beginRightBox(e)
+          return
+        }
         if (target?.closest('[data-bubble-id]')) return
         if (target?.closest('[data-zone-id]')) return
         if (target?.closest('.sl-empty-hint')) return
@@ -1090,6 +1402,10 @@ export function CanvasStage(): JSX.Element {
                 toggleCount={toggleMap.get(node.id)?.count}
                 onToggle={toggleCollapse}
                 editing={editingId === node.id}
+                depth={depthOf.get(node.id) ?? 0}
+                onHover={setHoverDelayed}
+                onEllipsisHover={showTipFromHover}
+                onLongHover={showTipFromLongHover}
               />
             ) : null
           )}
@@ -1099,6 +1415,54 @@ export function CanvasStage(): JSX.Element {
       <ZoneLayer />
       <InsertLayer />
 
+      {tipNodeId &&
+        (() => {
+          const node = nodesById.get(tipNodeId ?? '')
+          if (!node) return null
+          const p = layout.positions.get(node.id) ?? node.bubblePos
+          const vpNow = useViewportStore.getState().current()
+          const screenPos = {
+            x: p.x * vpNow.scale + vpNow.offsetX,
+            y: p.y * vpNow.scale + vpNow.offsetY
+          }
+          const r = radiusOfNode(node) * vpNow.scale
+          return (
+            <BubbleTextTip
+              node={node}
+              depth={depthOf.get(node.id) ?? 0}
+              x={screenPos.x}
+              y={Math.max(8, screenPos.y - r - 10)}
+              editing={tipEditingId === node.id && !editingId}
+              onStartEdit={() => {
+                // 同一时刻只允许一处激活：先结束内联编辑（D77）
+                if (editingId) {
+                  const current = nodesById.get(editingId)
+                  if (current) commitText(current.id, current.text)
+                  useSelectionStore.getState().stopEdit()
+                }
+                setTipEditingId(node.id)
+              }}
+              onHoverChange={(hovering) => {
+                tipHoverRef.current = hovering
+                if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+                if (hovering) return
+                // 鼠标离开文本框：没有在编辑就收起（D80）
+                hoverTimerRef.current = setTimeout(() => {
+                  if (!useSelectionStore.getState().editingId && !tipHoverRef.current) {
+                    tipHoldRef.current = false
+                    setTipNodeId(null)
+                  }
+                }, 250)
+              }}
+              onClose={() => {
+                if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+                setTipEditingId(null)
+                if (!editingId) setTipNodeId(null)
+              }}
+            />
+          )
+        })()}
+
       {editingNode && editingPos && (
         <InlineEditor
           key={editingNode.id}
@@ -1106,6 +1470,8 @@ export function CanvasStage(): JSX.Element {
           pos={editingPos}
           mode={viewMode}
           viewport={vp}
+          depth={depthOf.get(editingNode.id) ?? 0}
+          radius={radiusOfNode(editingNode)}
           onCommit={(text) => {
             commitText(editingNode.id, text)
             useSelectionStore.getState().stopEdit()
@@ -1253,7 +1619,6 @@ function writeBodies(session: DragSession, mode: 'bubble' | 'mindmap'): void {
   for (const [id, el] of session.insertBodyEls) {
     const b = bodyById.get(id)
     if (!b) continue
-    if (dirty.size > 0 && !dirty.has(id)) continue
     el.style.left = `${b.x * session.scale + session.vpOffset.x}px`
     el.style.top = `${b.y * session.scale + session.vpOffset.y}px`
   }

@@ -108,6 +108,12 @@ export async function resetCanvas(page: Page): Promise<void> {
   if (await dontSave.isVisible().catch(() => false)) {
     await dontSave.click()
   }
+  // D61：新建画布自带一个起点气泡；测试里先清掉它，得到空画布
+  await expect.poll(async () => page.locator('[data-bubble-id]').count(), { timeout: 8000 }).toBe(1)
+  await page.locator('.sl-inline-editor textarea').waitFor({ state: 'visible', timeout: 2000 }).catch(() => undefined)
+  await page.keyboard.press('Escape')
+  await page.locator('[data-bubble-id]').first().click({ force: true })
+  await page.keyboard.press('Delete')
   await expect.poll(async () => page.locator('[data-bubble-id]').count(), { timeout: 8000 }).toBe(0)
 }
 

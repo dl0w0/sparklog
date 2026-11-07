@@ -77,3 +77,6 @@ export const THEME_PRESETS = [
   { id: 'honey-apricot', name: '蜜杏' },
   { id: 'paper-grey', name: '纸灰' }
 ] as const
+
+/** 气泡文字与气泡边缘的固定内边距（D73） */
+export const BUBBLE_TEXT_PADDING = 10

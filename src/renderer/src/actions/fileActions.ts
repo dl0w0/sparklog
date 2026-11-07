@@ -8,6 +8,7 @@ import { useSelectionStore } from '@renderer/store/selectionStore'
 import { useUiStore } from '@renderer/store/uiStore'
 import { ROOT_LEVEL, useViewportStore } from '@renderer/store/viewportStore'
 import { api } from '@renderer/services/bridge'
+import { addRootBubble } from './bubbleActions'
 
 type UnsavedChoice = 'save' | 'dontSave' | 'cancel'
 let unsavedResolver: ((choice: UnsavedChoice) => void) | null = null
@@ -75,6 +76,24 @@ export async function newDocument(): Promise<void> {
   useSelectionStore.getState().clear()
   useViewportStore.getState().setLevel(ROOT_LEVEL)
   useViewportStore.getState().resetLevel(ROOT_LEVEL)
+  seedStartingBubble()
+}
+
+/**
+ * D61：空白画布默认带一个居中的主气泡，并直接进入编辑。
+ * 放在世界原点，再把视口平移到画布中心。
+ */
+export function seedStartingBubble(): void {
+  const store = useDocStore.getState()
+  if (store.doc.nodes.length > 0) return
+  const canvasWidth = Math.max(320, window.innerWidth - 56)
+  const canvasHeight = Math.max(240, window.innerHeight - 96)
+  useViewportStore.getState().set({
+    scale: 1,
+    offsetX: canvasWidth / 2,
+    offsetY: canvasHeight / 2
+  })
+  addRootBubble({ x: 0, y: 0 })
 }
 
 export async function openDocument(): Promise<void> {

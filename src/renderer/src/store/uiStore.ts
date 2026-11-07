@@ -23,6 +23,8 @@ export interface ContextMenuState {
   zoneId?: string | null
   /** 选中的连线（D49） */
   edgeId?: string | null
+  /** 内联编辑中选中文字时的格式菜单（D72） */
+  textNodeId?: string | null
   /** 右键的插入对象 id（D51） */
   insertId?: string | null
   /** 右键位置的世界坐标（插入对象落点，D29） */
