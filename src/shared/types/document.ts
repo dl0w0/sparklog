@@ -180,6 +180,8 @@ export interface SparklogFile {
   links: Link[]
   /** 父子连线的样式覆盖，key = parentId->childId */
   edgeStyles: Record<string, EdgeStyle>
+  /** 画布级设置覆盖（D84，仅本画布） */
+  settings?: CanvasSettings | null
 }
 
 /** 由 parentIds 推导出的连线 */

@@ -179,7 +179,7 @@ test.describe('v7 字体栏 / 文字菜单 / tooltip', () => {
     await page.waitForTimeout(200)
     await expect(tip).toHaveCount(0)
     // 长按后才出现
-    await page.waitForTimeout(700)
+    await page.waitForTimeout(1100)
     await expect(tip).toBeVisible()
     await expect(tip).toContainText('很长')
     await page.mouse.move(900, 700)

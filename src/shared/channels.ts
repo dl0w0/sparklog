@@ -26,6 +26,10 @@ export const CH = {
   winFocusByPath: 'win:focusByPath',
   docExportPdf: 'doc:exportPdf',
   appPathExists: 'app:pathExists',
+  settingsRead: 'settings:read',
+  settingsWrite: 'settings:write',
+  appCheckUpdate: 'app:checkUpdate',
+  appOpenExternal: 'app:openExternal',
   menuCommand: 'menu:command'
 } as const
 
@@ -57,3 +61,8 @@ export type MenuCommand =
   | 'insert.attachment'
   | 'zone.create'
   | 'help.shortcuts'
+  | 'settings.shortcuts'
+  | 'settings.text'
+  | 'settings.shape'
+  | 'settings.physics'
+  | 'settings.update'

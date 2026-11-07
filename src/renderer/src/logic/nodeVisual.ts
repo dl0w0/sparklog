@@ -4,6 +4,7 @@ import type { BubbleGeometry } from '@renderer/logic/geometry'
 import { BUBBLE_TEXT_PADDING, IMPORTANCE_MIN, DEPTH_SCALE, MIN_DEPTH_SCALE } from '@shared/constants'
 import { importanceToMindmapRadius, importanceToRadius, shapeMetrics } from './bubbleMetrics'
 import type { BubbleNode, ViewMode, BubbleShape } from '@shared/types/document'
+import { getTypographySettings } from './runtimeSettings'
 
 export function isRootNode(node: BubbleNode): boolean {
   return node.parentIds.length === 0
@@ -76,7 +77,8 @@ export const DEPTH_FONT_STEP = 1.6
 export const DEPTH_FONT_MIN = 11
 
 export function depthFontSize(depth: number): number {
-  return Math.max(DEPTH_FONT_MIN, DEPTH_FONT_BASE - Math.max(0, depth) * DEPTH_FONT_STEP)
+  const base = getTypographySettings().bubble.fontSize ?? DEPTH_FONT_BASE
+  return Math.max(DEPTH_FONT_MIN, base - Math.max(0, depth) * DEPTH_FONT_STEP)
 }
 
 /**

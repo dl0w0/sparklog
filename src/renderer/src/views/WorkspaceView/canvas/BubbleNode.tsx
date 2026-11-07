@@ -10,6 +10,8 @@ import {
 } from '@renderer/logic/nodeVisual'
 import { shapeMetrics } from '@renderer/logic/bubbleMetrics'
 import { BUBBLE_TEXT_PADDING } from '@shared/constants'
+import { getTypographySettings } from '@renderer/logic/runtimeSettings'
+import { useSettingsStore } from '@renderer/store/settingsStore'
 
 const LONG_HOVER_MS = 650
 
@@ -61,12 +63,14 @@ function BubbleNodeImpl({
   onLongHover
 }: BubbleNodeProps): JSX.Element {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 订阅设置变化，让内边距/字号等即时生效（D84）
+  useSettingsStore((s) => s.effective)
   const shape = shapeOf(node)
   const metrics = shapeMetrics(shape, radius)
   const root = isRootNode(node)
   // 字号只由层级默认值 + style 覆盖决定，不随半径/缩放变化（D74）
   const fontSize = node.style?.fontSize ?? fontSizeOf(node, mode, depth)
-  const padding = BUBBLE_TEXT_PADDING
+  const padding = getTypographySettings().bubble.padding
   // 文字区 = 气泡真实形状的内接矩形（D75），四角不会压到圆弧
   const textBox = textBoxOf(shape, metrics, padding)
   // 与 CanvasStage 的判定保持一致（D83）

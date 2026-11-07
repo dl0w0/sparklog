@@ -11,6 +11,7 @@ import {
   IMPORTANCE_MIN
 } from '../constants'
 import { migrateTaskPayload } from './tasks'
+import type { CanvasSettings } from '../types/settings'
 import type {
   BubbleNode,
   EdgeStyle,

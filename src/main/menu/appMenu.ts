@@ -91,6 +91,17 @@ export function buildAppMenu(): Menu {
       ]
     },
     {
+      label: '设置',
+      submenu: [
+        item('快捷键设置…', 'settings.shortcuts'),
+        item('文本编辑器…', 'settings.text'),
+        item('图形编辑…', 'settings.shape'),
+        item('物理性质…', 'settings.physics'),
+        { type: 'separator' },
+        item('检查更新…', 'settings.update')
+      ]
+    },
+    {
       label: '帮助',
       submenu: [
         item('快捷键一览', 'help.shortcuts'),

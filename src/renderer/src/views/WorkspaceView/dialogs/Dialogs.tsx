@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { useDocStore } from '@renderer/store/docStore'
 import { renameZone } from '@renderer/actions/zoneActions'
 import SelectPanel from '../panels/SelectPanel'
+import SettingsDialog from './SettingsDialog'
 import { buildViewEdges } from '@renderer/logic/links'
 import { setEdgeLabel } from '@renderer/actions/edgeActions'
 import ThemePanel from '../panels/ThemePanel'
@@ -113,6 +114,10 @@ export function Dialogs(): JSX.Element | null {
 
   if (dialog.kind === 'rename') {
     return <RenameZoneDialog zoneId={dialog.zoneId} onClose={closeDialog} />
+  }
+
+  if (dialog.kind === 'settings') {
+    return <SettingsDialog tab={dialog.tab} onClose={closeDialog} />
   }
 
   if (dialog.kind === 'edgeLabel') {

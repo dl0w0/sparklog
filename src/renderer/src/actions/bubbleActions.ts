@@ -26,6 +26,7 @@ import { placeNewChild, placeNewRoot } from '@renderer/logic/layout/bubbleSpawn'
 import { makeRadiusResolver } from '@renderer/logic/nodeVisual'
 import { newId } from '@renderer/logic/ids'
 import { useDocStore } from '@renderer/store/docStore'
+import { getShapeSettings } from '@renderer/logic/runtimeSettings'
 import { useSelectionStore } from '@renderer/store/selectionStore'
 import { currentZoneLevelId } from '@renderer/store/viewportStore'
 

@@ -35,6 +35,12 @@ const api: SparklogApi = {
   openWorkspace: (filePath?: string | null) =>
     ipcRenderer.invoke(CH.appOpenWorkspace, filePath) as Promise<void>,
   pathExists: (target: string) => ipcRenderer.invoke(CH.appPathExists, target) as Promise<boolean>,
+  readSettings: () => ipcRenderer.invoke(CH.settingsRead),
+  writeSettings: (settings: unknown) => ipcRenderer.invoke(CH.settingsWrite, settings),
+  checkUpdate: () => ipcRenderer.invoke(CH.appCheckUpdate),
+  openExternal: (url: string) => {
+    void ipcRenderer.invoke(CH.appOpenExternal, url)
+  },
   setTitle: (title: string) => {
     void ipcRenderer.invoke(CH.winSetTitle, title)
   },

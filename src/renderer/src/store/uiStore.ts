@@ -13,6 +13,7 @@ export type DialogState =
   | { kind: 'insert' }
   | { kind: 'rename'; zoneId: string }
   | { kind: 'edgeLabel'; edgeId: string }
+  | { kind: 'settings'; tab: 'shortcuts' | 'text' | 'shape' | 'physics' | 'update' }
   | null
 
 export interface ContextMenuState {
@@ -47,6 +48,7 @@ export interface UiStore {
   openContextMenu: (menu: ContextMenuState) => void
   closeContextMenu: () => void
   openDialog: (dialog: NonNullable<DialogState>) => void
+  openSettings: (tab: 'shortcuts' | 'text' | 'shape' | 'physics' | 'update') => void
   closeDialog: () => void
   showToast: (message: string) => void
   hideToast: () => void
@@ -68,6 +70,7 @@ export const useUiStore = create<UiStore>((set) => ({
   openContextMenu: (menu) => set({ contextMenu: menu }),
   closeContextMenu: () => set({ contextMenu: null }),
   openDialog: (dialog) => set({ dialog, contextMenu: null }),
+  openSettings: (tab) => set({ dialog: { kind: 'settings', tab }, contextMenu: null }),
   closeDialog: () => set({ dialog: null }),
 
   showToast: (message) => {

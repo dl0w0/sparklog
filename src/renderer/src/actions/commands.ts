@@ -229,6 +229,20 @@ export function executeKeyAction(action: KeyAction): void {
 }
 
 export function executeMenuCommand(command: MenuCommand): void {
+  if (command.startsWith('settings.')) {
+    const tab =
+      command === 'settings.shortcuts'
+        ? 'shortcuts'
+        : command === 'settings.text'
+          ? 'text'
+          : command === 'settings.shape'
+            ? 'shape'
+            : command === 'settings.physics'
+              ? 'physics'
+              : 'update'
+    useUiStore.getState().openSettings(tab)
+    return
+  }
   const sel = useSelectionStore.getState()
   switch (command) {
     case 'file.new':

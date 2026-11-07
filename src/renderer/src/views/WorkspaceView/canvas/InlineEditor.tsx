@@ -11,6 +11,7 @@ import { BUBBLE_TEXT_PADDING } from '@shared/constants'
 import { shapeMetrics } from '@renderer/logic/bubbleMetrics'
 import { worldToScreen } from '@renderer/logic/layout/fitView'
 import { useUiStore } from '@renderer/store/uiStore'
+import { getTypographySettings } from '@renderer/logic/runtimeSettings'
 
 export interface InlineEditorProps {
   node: BubbleNode
@@ -59,7 +60,7 @@ export function InlineEditor({
   const metrics = shapeMetrics(shapeOf(node), radius)
   const center = worldToScreen(pos, viewport)
   // 与气泡文字区一致：内接矩形 × 缩放，字号 = 层级默认/覆盖 × 缩放（D74/D75）
-  const box = textBoxOf(shapeOf(node), metrics, BUBBLE_TEXT_PADDING)
+  const box = textBoxOf(shapeOf(node), metrics, getTypographySettings().bubble.padding)
   const width = box.w * viewport.scale
   const height = box.h * viewport.scale
   const shared = bubbleTextStyle(node, depth)

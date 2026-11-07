@@ -75,7 +75,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
     await makeBubble(LONG)
     const bubble = page.locator('[data-bubble-id]').first()
     await bubble.hover()
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1100)
 
     const tip = page.locator('.sl-bubble-tooltip')
     await expect(tip).toBeVisible()
@@ -99,7 +99,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
     await makeBubble(LONG)
     const bubble = page.locator('[data-bubble-id]').first()
     await bubble.hover()
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1100)
 
     const tip = page.locator('.sl-bubble-tooltip')
     await expect(tip).toBeVisible()
@@ -174,7 +174,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
     const bubble = page.locator('[data-bubble-id]').first()
     const transformBefore = await bubble.getAttribute('transform')
     await bubble.hover()
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1100)
 
     const tip = page.locator('.sl-bubble-tooltip')
     await expect(tip).toBeVisible()
@@ -206,7 +206,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
     await makeBubble(LONG)
     const bubble = page.locator('[data-bubble-id]').first()
     await bubble.hover()
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1100)
 
     const tip = page.locator('.sl-bubble-tooltip')
     await expect(tip).toBeVisible()
@@ -236,7 +236,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
 
     // 再次打开后，点击外部才关闭
     await bubble.hover()
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1100)
     await expect(page.locator('.sl-bubble-tooltip')).toBeVisible()
     await page.mouse.click(900, 700)
     await expect.poll(async () => page.locator('.sl-bubble-tooltip').count()).toBe(0)
@@ -252,7 +252,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
 
     // ② 长按也不出现
     await bubble.hover()
-    await page.waitForTimeout(900)
+    await page.waitForTimeout(1100)
     await expect(tip).toHaveCount(0)
 
     // ③ 双击进入编辑也不出现
@@ -270,7 +270,7 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
 
     // 打开文本框编辑（长按后出现）
     await bubble.hover()
-    await page.waitForTimeout(800)
+    await page.waitForTimeout(1100)
     await page.locator('.sl-bubble-tooltip').click()
     await expect(page.locator('.sl-tip-text')).toBeVisible()
 

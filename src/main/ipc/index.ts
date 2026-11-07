@@ -8,6 +8,8 @@ import type { ExportRequest, OpenDialogResult, ReadResult, SaveResult } from '@s
 import type { SparklogFile } from '@shared/types/document'
 import { ensureExtension, readDocumentFile, writeDocumentFile } from '../services/documentFile'
 import { clearRecent, dropRecent, listRecent, pushRecent } from '../services/recentFiles'
+import { readSettings, writeSettings } from '../services/settings'
+import { checkForUpdates } from '../services/updates'
 import type { WindowManager } from '../windows/manager'
 
 function ownerWindow(manager: WindowManager, sender: Electron.WebContents): BrowserWindow | null {
@@ -163,6 +165,12 @@ export function registerIpcHandlers(manager: WindowManager): void {
     shell.showItemInFolder(target)
   })
 
+  ipcMain.handle(CH.settingsRead, () => readSettings())
+  ipcMain.handle(CH.settingsWrite, (_event, value: unknown) => writeSettings(value))
+  ipcMain.handle(CH.appCheckUpdate, () => checkForUpdates())
+  ipcMain.handle(CH.appOpenExternal, (_event, url: string) => {
+    if (typeof url === 'string' && /^https:\/\//.test(url)) void shell.openExternal(url)
+  })
   ipcMain.handle(CH.recentList, () => listRecent())
   ipcMain.handle(CH.recentAdd, (_event, filePath: string) => pushRecent(filePath))
   ipcMain.handle(CH.recentRemove, (_event, filePath: string) => dropRecent(filePath))

@@ -13,12 +13,22 @@ import SearchBar from './SearchBar'
 import BatchActionBar from './BatchActionBar'
 import Breadcrumb from './Breadcrumb'
 import FormulaBar from './FormulaBar'
+import { useSettingsStore } from '@renderer/store/settingsStore'
 import ContextMenu from './ContextMenu'
 import Dialogs from './dialogs/Dialogs'
 import { menuFor } from './menuItems'
 
 export function WorkspaceView(): JSX.Element {
   useShortcuts()
+
+  // 设置：启动加载一次，文档切换后重算画布覆盖（D84）
+  useEffect(() => {
+    void useSettingsStore.getState().load()
+  }, [])
+  const canvasSettings = useDocStore((s) => s.doc.settings)
+  useEffect(() => {
+    useSettingsStore.getState().refreshEffective()
+  }, [canvasSettings])
 
   const theme = useDocStore((s) => s.doc.theme)
   const contextMenu = useUiStore((s) => s.contextMenu)

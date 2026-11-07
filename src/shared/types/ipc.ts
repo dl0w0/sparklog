@@ -89,6 +89,11 @@ export interface SparklogApi {
   /** 从开始窗口打开工作区：undefined = 弹选择对话框，null = 空白画布，字符串 = 打开该路径 */
   openWorkspace(filePath?: string | null): Promise<void>
   pathExists(target: string): Promise<boolean>
+  /** 设置与更新 */
+  readSettings(): Promise<unknown>
+  writeSettings(settings: unknown): Promise<boolean>
+  checkUpdate(): Promise<unknown>
+  openExternal(url: string): void
   setTitle(title: string): void
   setDirty(dirty: boolean): void
   closeCurrent(): void

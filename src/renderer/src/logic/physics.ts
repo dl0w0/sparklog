@@ -3,6 +3,8 @@
  * 只在拖拽期间使用；纯数据运算，不接触 DOM，可单测。
  */
 
+import { getPhysicsSettings } from './runtimeSettings'
+
 export interface PhysicsBody {
   id: string
   x: number
@@ -59,7 +61,13 @@ export function stepPhysics(
   springs: readonly Spring[],
   options: PhysicsOptions = {}
 ): number {
-  const opts = { ...DEFAULTS, ...options }
+  const runtime = getPhysicsSettings()
+  const opts = {
+    ...DEFAULTS,
+    damping: runtime.damping ?? DEFAULTS.damping,
+    stiffness: runtime.elasticity ?? DEFAULTS.stiffness,
+    ...options
+  }
   const byId = new Map<string, PhysicsBody>()
   const forces = new Map<string, Force>()
   for (const b of bodies) {
