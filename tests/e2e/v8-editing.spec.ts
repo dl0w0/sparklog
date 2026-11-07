@@ -202,6 +202,46 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
     await page.keyboard.press('Escape')
   })
 
+  test('点击文本框不关闭，只在外部点击 / Esc 时关闭（D82）', async () => {
+    await makeBubble(LONG)
+    const bubble = page.locator('[data-bubble-id]').first()
+    await bubble.hover()
+    await page.waitForTimeout(800)
+
+    const tip = page.locator('.sl-bubble-tooltip')
+    await expect(tip).toBeVisible()
+    const box = await tip.boundingBox()
+    if (!box) throw new Error('no tip box')
+
+    // 连续点击不同位置：文本框必须一直在，且光标随之定位
+    await page.mouse.click(box.x + 24, box.y + 20)
+    await expect(tip).toBeVisible()
+    const leftOffset = await page.evaluate(() => window.getSelection()?.anchorOffset ?? -1)
+    await page.mouse.click(box.x + box.width - 24, box.y + 20)
+    await expect(tip).toBeVisible()
+    const rightOffset = await page.evaluate(() => window.getSelection()?.anchorOffset ?? -1)
+
+    expect(leftOffset).toBeGreaterThanOrEqual(0)
+    expect(rightOffset).toBeGreaterThan(leftOffset)
+
+    // 仍在编辑：输入会写回气泡
+    await page.keyboard.type('X')
+    await expect
+      .poll(async () => (await page.locator('[data-bubble-id]').first().textContent()) ?? '')
+      .toContain('X')
+
+    // Esc 关闭
+    await page.keyboard.press('Escape')
+    await expect.poll(async () => page.locator('.sl-bubble-tooltip').count()).toBe(0)
+
+    // 再次打开后，点击外部才关闭
+    await bubble.hover()
+    await page.waitForTimeout(800)
+    await expect(page.locator('.sl-bubble-tooltip')).toBeVisible()
+    await page.mouse.click(900, 700)
+    await expect.poll(async () => page.locator('.sl-bubble-tooltip').count()).toBe(0)
+  })
+
   test('内联编辑与全文文本框互斥（D77）', async () => {
     await makeBubble(LONG)
     const bubble = page.locator('[data-bubble-id]').first()

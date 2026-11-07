@@ -64,7 +64,24 @@ export function BubbleTextTip({
       onMouseEnter={() => onHoverChange?.(true)}
       onMouseLeave={() => onHoverChange?.(false)}
       // 事件不穿透：不触发画布平移、也不拖动下层气泡（D81）
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        const el = textRef.current
+        if (!el) return
+        // 点在 padding 上也进入编辑，并把光标放到最近的文字位置（D82）
+        if (!el.contains(e.target as Node)) {
+          el.focus()
+          const selection = window.getSelection()
+          const range = (document as unknown as {
+            caretRangeFromPoint?: (x: number, y: number) => Range | null
+          }).caretRangeFromPoint?.(e.clientX, e.clientY)
+          if (selection && range) {
+            range.collapse(true)
+            selection.removeAllRanges()
+            selection.addRange(range)
+          }
+        }
+      }}
       onPointerMove={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

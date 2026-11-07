@@ -36,6 +36,7 @@ import { createZoneAt, ensureValidLevel, exitZone, moveBubbleIntoZone } from '@r
 import { insertDisplayPos } from '@renderer/actions/insertActions'
 import { insertRadius } from '@renderer/logic/fitBounds'
 import { tidyPositions } from '@renderer/logic/tidy'
+import { commitTransientText } from '@renderer/actions/bubbleActions'
 import BubbleNode from './BubbleNode'
 import EdgeLayer from './EdgeLayer'
 import InlineEditor from './InlineEditor'
@@ -146,6 +147,32 @@ export function CanvasStage(): JSX.Element {
   const [tipNodeId, setTipNodeId] = useState<string | null>(null)
   const tipHoldRef = useRef(false)
   const tipHoverRef = useRef(false)
+  const tipEditingRef = useRef<string | null>(null)
+  tipEditingRef.current = tipEditingId
+
+  /** 文本框只允许在：点击外部、Esc、提交编辑时关闭（D82） */
+  const canHideTip = useCallback(
+    () => !tipHoverRef.current && !tipEditingRef.current && !useSelectionStore.getState().editingId,
+    []
+  )
+
+  const hideTip = useCallback(() => {
+    tipHoverRef.current = false
+    tipHoldRef.current = false
+    setTipEditingId(null)
+    setTipNodeId(null)
+  }, [])
+
+  const scheduleHideTip = useCallback(
+    (delay = 200) => {
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = setTimeout(() => {
+        if (!canHideTip()) return
+        hideTip()
+      }, delay)
+    },
+    [canHideTip]
+  )
 
   /** D80：文本框只在 ①省略号悬停 ②长按气泡 ③双击进入编辑 时出现 */
   const showTipFromHover = useCallback((id: string | null) => {
@@ -155,12 +182,10 @@ export function CanvasStage(): JSX.Element {
       setTipNodeId(id)
       return
     }
-    // 省略号通道：离开即收起（不占用长按的宽限）
-    if (!tipHoldRef.current && !useSelectionStore.getState().editingId) {
-      tipHoldRef.current = false
-      setTipNodeId(null)
-    }
-  }, [])
+    // 省略号通道：短暂延迟后收起，期间移到文本框上会取消（D82）
+    tipHoldRef.current = false
+    scheduleHideTip(180)
+  }, [scheduleHideTip])
 
   const showTipFromLongHover = useCallback((id: string | null) => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
@@ -169,14 +194,9 @@ export function CanvasStage(): JSX.Element {
       setTipNodeId(id)
       return
     }
-    // 离开气泡后给 300ms 移到文本框上；没移过去就收起
-    hoverTimerRef.current = setTimeout(() => {
-      if (!tipHoverRef.current && !useSelectionStore.getState().editingId) {
-        tipHoldRef.current = false
-        setTipNodeId(null)
-      }
-    }, 300)
-  }, [])
+    tipHoldRef.current = false
+    scheduleHideTip(300)
+  }, [scheduleHideTip])
   const [size, setSize] = useState({ w: 1000, h: 700 })
   const [box, setBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null)
 
@@ -430,6 +450,19 @@ export function CanvasStage(): JSX.Element {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode])
+
+  // 点击文本框之外才关闭（D82）
+  useEffect(() => {
+    const onDown = (event: PointerEvent): void => {
+      const target = event.target as Element | null
+      if (target?.closest('.sl-bubble-tooltip')) return
+      if (!tipNodeId && !tipEditingId) return
+      if (tipEditingId) commitTransientText()
+      hideTip()
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    return () => window.removeEventListener('pointerdown', onDown, true)
+  }, [tipNodeId, tipEditingId])
 
   // —— 尺寸感知 ——
   useEffect(() => {
@@ -1444,20 +1477,15 @@ export function CanvasStage(): JSX.Element {
               }}
               onHoverChange={(hovering) => {
                 tipHoverRef.current = hovering
-                if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
-                if (hovering) return
-                // 鼠标离开文本框：没有在编辑就收起（D80）
-                hoverTimerRef.current = setTimeout(() => {
-                  if (!useSelectionStore.getState().editingId && !tipHoverRef.current) {
-                    tipHoldRef.current = false
-                    setTipNodeId(null)
-                  }
-                }, 250)
+                if (hovering) {
+                  if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+                  return
+                }
+                scheduleHideTip(260)
               }}
               onClose={() => {
                 if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
-                setTipEditingId(null)
-                if (!editingId) setTipNodeId(null)
+                hideTip()
               }}
             />
           )
