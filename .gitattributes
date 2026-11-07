@@ -1,0 +1,14 @@
+# 统一行尾：仓库内一律 LF，避免 Windows/macOS 协作时产生无意义改动
+* text=auto eol=lf
+
+# 明确声明二进制资源，禁止任何行尾转换
+*.ico  binary
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+
+# 打包产物不参与语言统计
+release/** linguist-generated=true
+package-lock.json linguist-generated=true

@@ -1,0 +1,26 @@
+node_modules/
+out/
+dist/
+release/
+*.log
+.DS_Store
+tests/e2e/.artifacts/
+
+# 构建 / 打包产物
+test-results/
+playwright-report/
+blob-report/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# 本地环境变量
+.env
+.env.local
+.env.*.local
+
+# 内部文档：仅保留在本地，不随仓库公开
+PRD.md
+
+# 本地调试脚本
+scratch-*.cjs

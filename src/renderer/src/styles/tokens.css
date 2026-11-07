@@ -1,0 +1,52 @@
+:root {
+  --sl-bg: #f7f8fc;
+  --sl-bubble-from: #ffffff;
+  --sl-bubble-to: #eef2ff;
+  --sl-root-stroke: #5b6fd6;
+  --sl-child-stroke: #b8c1e8;
+  --sl-text: #2a3050;
+  --sl-edge: #b9c2df;
+  --sl-accent: #5b6fd6;
+  --sl-edge-width: 1.5;
+
+  --sl-radius: 10px;
+  --sl-sidebar-width: 56px;
+  --sl-status-height: 24px;
+  --sl-gap: 4px;
+
+  --sl-shadow: 0 2px 8px rgba(35, 45, 90, 0.1);
+  --sl-shadow-root: 0 3px 12px rgba(35, 45, 90, 0.14);
+  --sl-glow: 0 0 0 3px rgba(91, 111, 214, 0.22);
+
+  --sl-font: 'Microsoft YaHei UI', 'Segoe UI', system-ui, sans-serif;
+  --sl-mono: 'Cascadia Mono', Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--sl-font);
+  color: var(--sl-text);
+  background: var(--sl-bg);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: rgba(91, 111, 214, 0.22);
+}

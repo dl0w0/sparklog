@@ -1,0 +1,35 @@
+appId: com.sparklog.desktop
+productName: Sparklog
+copyright: Copyright © 2026 Sparklog
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Sparklog
+
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+
+compression: normal

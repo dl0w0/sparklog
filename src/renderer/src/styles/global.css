@@ -1,0 +1,852 @@
+/* 应用骨架 */
+.sl-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--sl-bg);
+}
+
+.sl-workspace {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.sl-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 左侧工具栏 */
+.sl-sidebar {
+  width: var(--sl-sidebar-width);
+  flex: 0 0 var(--sl-sidebar-width);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0;
+  border-right: 1px solid rgba(91, 111, 214, 0.12);
+  background: #fff;
+  z-index: 5;
+}
+
+.sl-tool {
+  width: 38px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: #5c6480;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+}
+
+.sl-tool:hover {
+  background: rgba(91, 111, 214, 0.08);
+  color: var(--sl-accent);
+}
+
+.sl-tool.active {
+  background: rgba(91, 111, 214, 0.14);
+  color: var(--sl-accent);
+  border-color: rgba(91, 111, 214, 0.35);
+}
+
+.sl-tool:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+.sl-divider {
+  width: 26px;
+  height: 1px;
+  background: rgba(91, 111, 214, 0.16);
+  margin: 4px 0;
+}
+
+/* 画布 */
+.sl-canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--sl-bg);
+  outline: none;
+  touch-action: none;
+}
+
+.sl-canvas.panning {
+  cursor: grabbing;
+}
+
+.sl-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+
+.sl-edge {
+  fill: none;
+  stroke: var(--sl-edge);
+  stroke-width: var(--sl-edge-width);
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.sl-edge.back {
+  stroke-dasharray: 4 4;
+}
+
+.sl-edge.selected {
+  stroke: var(--sl-accent);
+  stroke-width: 2;
+}
+
+.sl-bubble {
+  cursor: grab;
+}
+
+.sl-bubble.dragging {
+  cursor: grabbing;
+}
+
+.sl-bubble .bubble-fill {
+  fill: url(#sl-bubble-gradient);
+  filter: drop-shadow(0 2px 8px rgba(35, 45, 90, 0.1));
+}
+
+.sl-bubble.is-root .bubble-fill {
+  filter: drop-shadow(0 3px 12px rgba(35, 45, 90, 0.14));
+}
+
+.sl-bubble .bubble-stroke {
+  fill: none;
+  stroke: var(--sl-child-stroke);
+  stroke-width: 1.5;
+}
+
+.sl-bubble.is-root .bubble-stroke {
+  stroke: var(--sl-root-stroke);
+  stroke-width: 2.5;
+}
+
+.sl-bubble.is-selected .bubble-stroke {
+  stroke: var(--sl-accent);
+  stroke-width: 2.5;
+}
+
+.sl-bubble.is-selected .bubble-halo {
+  opacity: 1;
+}
+
+.sl-bubble .bubble-halo {
+  fill: none;
+  stroke: var(--sl-accent);
+  stroke-width: 3;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.sl-bubble:hover .bubble-stroke {
+  stroke: var(--sl-accent);
+}
+
+.sl-bubble-text {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--sl-text);
+  line-height: 1.25;
+  padding: 0 6px;
+  overflow: hidden;
+  word-break: break-word;
+  white-space: pre-wrap;
+  pointer-events: none;
+}
+
+.sl-bubble-text.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+/* 内联编辑器 */
+.sl-inline-editor {
+  position: absolute;
+  border: 2px solid var(--sl-accent);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--sl-glow);
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.sl-inline-editor textarea {
+  width: 100%;
+  height: 100%;
+  border: none;
+  outline: none;
+  resize: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: center;
+  color: var(--sl-text);
+  line-height: 1.25;
+  overflow: hidden;
+}
+
+/* 状态栏 */
+.sl-status {
+  height: var(--sl-status-height);
+  flex: 0 0 var(--sl-status-height);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 12px;
+  font-size: 11.5px;
+  color: #6b7285;
+  background: #fff;
+  border-top: 1px solid rgba(91, 111, 214, 0.12);
+}
+
+.sl-status .spacer {
+  flex: 1;
+}
+
+.sl-status .dirty {
+  color: #b07a3c;
+}
+
+.sl-status .error {
+  color: #c0392b;
+  cursor: pointer;
+}
+
+/* 右键菜单 */
+.sl-context-menu {
+  overflow: visible;
+  position: absolute;
+  z-index: 100;
+  min-width: 210px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid rgba(91, 111, 214, 0.18);
+  border-radius: 9px;
+  box-shadow: 0 8px 28px rgba(35, 45, 90, 0.18);
+  font-size: 13px;
+}
+
+.sl-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sl-menu-item:hover {
+  background: rgba(91, 111, 214, 0.1);
+}
+
+.sl-menu-item.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.sl-menu-item.danger {
+  color: #c0392b;
+}
+
+.sl-menu-item .shortcut {
+  margin-left: auto;
+  color: #9aa1b8;
+  font-size: 11px;
+}
+
+.sl-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: rgba(91, 111, 214, 0.14);
+}
+
+/* 弹窗 */
+.sl-modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(28, 34, 56, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.sl-modal {
+  min-width: 380px;
+  max-width: 560px;
+  padding: 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(28, 34, 56, 0.25);
+}
+
+.sl-modal h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sl-modal p {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: #5c6480;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.sl-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sl-btn {
+  padding: 7px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(91, 111, 214, 0.3);
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.sl-btn:hover {
+  background: rgba(91, 111, 214, 0.08);
+}
+
+.sl-btn.primary {
+  background: var(--sl-accent);
+  border-color: var(--sl-accent);
+  color: #fff;
+}
+
+.sl-btn.primary:hover {
+  filter: brightness(1.05);
+}
+
+.sl-btn.danger {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: #fff;
+}
+
+/* Toast */
+.sl-toast {
+  position: fixed;
+  bottom: 44px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 16px;
+  background: rgba(42, 48, 80, 0.92);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 12.5px;
+  z-index: 300;
+  animation: sl-fade-in 140ms ease;
+}
+
+@keyframes sl-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* 空画布提示 */
+.sl-empty-hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  color: #a2a9bf;
+  font-size: 13px;
+}
+
+.sl-empty-hint .title {
+  font-size: 15px;
+  color: #8c93ad;
+}
+
+/* 开始页 */
+.sl-start {
+  display: flex;
+  height: 100%;
+  background: #fff;
+}
+
+.sl-start-left {
+  width: 280px;
+  flex: 0 0 280px;
+  padding: 36px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: linear-gradient(170deg, #f4f6ff, #fbfcff);
+  border-right: 1px solid rgba(91, 111, 214, 0.12);
+}
+
+.sl-brand {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--sl-accent);
+  letter-spacing: 0.5px;
+}
+
+.sl-brand-sub {
+  font-size: 12.5px;
+  color: #7b8299;
+  margin-top: -10px;
+}
+
+.sl-start-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(91, 111, 214, 0.25);
+  background: #fff;
+  cursor: pointer;
+  font-size: 13.5px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.sl-start-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(35, 45, 90, 0.1);
+}
+
+.sl-start-btn.primary {
+  background: var(--sl-accent);
+  border-color: var(--sl-accent);
+  color: #fff;
+}
+
+.sl-start-right {
+  flex: 1;
+  padding: 30px 28px;
+  overflow: auto;
+}
+
+.sl-start-section-title {
+  font-size: 13px;
+  color: #6b7285;
+  margin-bottom: 12px;
+}
+
+.sl-recent-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.sl-recent-item:hover {
+  background: rgba(91, 111, 214, 0.06);
+  border-color: rgba(91, 111, 214, 0.16);
+}
+
+.sl-recent-item .name {
+  font-size: 13.5px;
+}
+
+.sl-recent-item .path {
+  font-size: 11.5px;
+  color: #9aa1b8;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 420px;
+}
+
+.sl-recent-remove {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #9aa1b8;
+  cursor: pointer;
+  font-size: 15px;
+  opacity: 0;
+}
+
+.sl-recent-item:hover .sl-recent-remove {
+  opacity: 1;
+}
+
+.sl-start-footer {
+  font-size: 11.5px;
+  color: #a2a9bf;
+  margin-top: auto;
+}
+
+/* ============ v2 视觉修订（D25 / D26 / D27 / D30） ============ */
+
+/* 气泡：去除昂贵 filter，改用独立投影层 + 玻璃质感高光 */
+.sl-bubble .bubble-fill {
+  fill: url(#sl-bubble-gradient);
+  filter: none;
+}
+
+.sl-bubble.is-root .bubble-fill {
+  filter: none;
+}
+
+.sl-bubble .bubble-shadow-layer {
+  fill: #2a3050;
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+.sl-bubble.is-root .bubble-shadow-layer {
+  opacity: 0.12;
+}
+
+.sl-bubble .bubble-gloss {
+  fill: url(#sl-bubble-gloss);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.sl-bubble .bubble-stroke {
+  fill: none;
+  stroke: var(--sl-child-stroke);
+  stroke-width: 1.4;
+  transition: stroke 140ms ease;
+}
+
+.sl-bubble.is-root .bubble-stroke {
+  stroke: var(--sl-root-stroke);
+  stroke-width: 2.2;
+}
+
+.sl-bubble:hover .bubble-stroke {
+  stroke: var(--sl-accent);
+}
+
+.sl-bubble.is-selected .bubble-stroke {
+  stroke: var(--sl-accent);
+  stroke-width: 2.2;
+}
+
+.sl-bubble .bubble-halo {
+  fill: none;
+  stroke: var(--sl-accent);
+  stroke-width: 1.6;
+  opacity: 0;
+  stroke-dasharray: 5 4;
+  animation: sl-halo-spin 6s linear infinite;
+}
+
+.sl-bubble.is-selected .bubble-halo {
+  opacity: 0.5;
+}
+
+@keyframes sl-halo-spin {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+
+.sl-bubble.is-collapsed .bubble-stroke {
+  stroke-dasharray: 6 3;
+}
+
+/* 内联编辑：不显示方框，文字直接落在气泡里 */
+.sl-inline-editor {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.sl-inline-editor textarea {
+  border: none;
+  outline: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--sl-text);
+  caret-color: var(--sl-accent);
+  text-align: center;
+  resize: none;
+  font-family: inherit;
+  overflow: hidden;
+}
+
+/* 折叠按钮（D27） */
+.sl-collapse-toggle {
+  cursor: pointer;
+}
+
+.sl-collapse-toggle circle {
+  fill: #ffffff;
+  stroke: var(--sl-accent);
+  stroke-width: 1.4;
+  opacity: 0.92;
+}
+
+.sl-collapse-toggle text {
+  font-size: 11px;
+  fill: var(--sl-accent);
+  font-weight: 600;
+  user-select: none;
+}
+
+.sl-collapse-toggle:hover circle {
+  opacity: 1;
+  stroke-width: 2;
+}
+
+.sl-collapse-toggle.is-collapsed circle {
+  fill: var(--sl-accent);
+}
+
+.sl-collapse-toggle.is-collapsed text {
+  fill: #ffffff;
+}
+
+/* 插入对象：简笔小图标（D26） */
+.sl-insert-badge {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid rgba(91, 111, 214, 0.35);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--sl-accent);
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(35, 45, 90, 0.12);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.sl-insert-badge:hover {
+  transform: scale(1.12);
+  box-shadow: 0 3px 10px rgba(35, 45, 90, 0.2);
+}
+
+.sl-insert-card {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  min-width: 210px;
+  max-width: 280px;
+  background: #fff;
+  border: 1px solid rgba(91, 111, 214, 0.22);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(35, 45, 90, 0.16);
+  font-size: 12.5px;
+  cursor: grab;
+  user-select: none;
+}
+
+.sl-insert-card:active {
+  cursor: grabbing;
+}
+
+.sl-insert-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border-bottom: 1px solid rgba(91, 111, 214, 0.12);
+  color: #5c6480;
+}
+
+.sl-insert-icon {
+  display: inline-flex;
+  color: var(--sl-accent);
+}
+
+.sl-insert-title {
+  font-weight: 600;
+  color: #3a4260;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sl-insert-head .spacer {
+  flex: 1;
+}
+
+.sl-insert-mini {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #8c93ad;
+  font-size: 11.5px;
+  padding: 2px 4px;
+  border-radius: 5px;
+}
+
+.sl-insert-mini:hover {
+  background: rgba(91, 111, 214, 0.1);
+  color: var(--sl-accent);
+}
+
+.sl-insert-body {
+  padding: 8px 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  user-select: text;
+}
+
+.sl-insert-input,
+.sl-insert-textarea {
+  width: 100%;
+  border: 1px solid rgba(91, 111, 214, 0.16);
+  border-radius: 6px;
+  padding: 5px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  resize: vertical;
+  color: #2a3050;
+  background: #fbfcff;
+}
+
+.sl-insert-textarea {
+  min-height: 70px;
+}
+
+.sl-task-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sl-task-text {
+  flex: 1;
+  outline: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.sl-task-text:focus {
+  background: rgba(91, 111, 214, 0.08);
+}
+
+.sl-task-text.done {
+  text-decoration: line-through;
+  color: #a2a9bf;
+}
+
+.sl-insert-file {
+  color: #3a4260;
+  word-break: break-all;
+}
+
+.sl-insert-image {
+  max-width: 100%;
+  border-radius: 6px;
+  display: block;
+}
+
+.sl-collapse-toggle .sl-collapse-hit {
+  fill: transparent;
+  stroke: none;
+}
+
+.sl-collapse-toggle {
+  cursor: pointer;
+}
+
+/* 连线命中区（D49）：细线也容易点中 */
+/* 可见连线不接收事件，统一由加宽的透明命中区处理，避免点击落到细线上 */
+.sl-edge {
+  pointer-events: none;
+}
+
+.sl-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+.sl-edge.selected {
+  stroke: var(--sl-accent);
+  stroke-width: 2.4;
+}
+
+/* 连线端点手柄 */
+.sl-edge-handle {
+  fill: #fff;
+  stroke: var(--sl-accent);
+  stroke-width: 2;
+  cursor: grab;
+}
+
+.sl-edge-handle:active {
+  cursor: grabbing;
+}
+
+.sl-edge-handle:hover {
+  fill: var(--sl-accent);
+}
+
+
+.sl-edge-label {
+  font-size: 12px;
+  fill: var(--sl-text, #2a3050);
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
+
+.sl-color-input {
+  width: 26px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(91, 111, 214, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
