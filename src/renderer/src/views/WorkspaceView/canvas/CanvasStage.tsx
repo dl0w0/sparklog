@@ -6,7 +6,12 @@ import { cullVisible } from '@renderer/logic/layout/culling'
 import { layoutMindmap } from '@renderer/logic/layout/mindmapLayout'
 import { screenToWorld } from '@renderer/logic/layout/fitView'
 import { bezierToPath, buildEdgeGeometry, pointOnShape } from '@renderer/logic/geometry'
-import { computeDepths, makeRadiusResolver, shapeOf } from '@renderer/logic/nodeVisual'
+import {
+  computeDepths,
+  isBubbleTextTruncated,
+  makeRadiusResolver,
+  shapeOf
+} from '@renderer/logic/nodeVisual'
 import { buildSprings, isSettled, stepPhysics, type PhysicsBody, type Spring } from '@renderer/logic/physics'
 import { resolveLinkLengths } from '@renderer/logic/linkLength'
 import {
@@ -1332,16 +1337,26 @@ export function CanvasStage(): JSX.Element {
   )
 
 
-  // 双击进入编辑时同步显示全文文本框（D80 ③）
+  // 双击进入编辑时显示全文文本框——但仅当文字确实被截断（D80 ③ + D83）
+  const editingTruncated = useMemo(() => {
+    const node = editingId ? doc.nodes.find((n) => n.id === editingId) : null
+    if (!node) return false
+    return isBubbleTextTruncated(node, radiusOfNode(node), depthOf.get(node.id) ?? 0)
+  }, [editingId, doc.nodes, radiusOfNode, depthOf])
+
   useEffect(() => {
     if (editingId) {
-      tipHoldRef.current = true
-      setTipNodeId(editingId)
+      if (editingTruncated) {
+        tipHoldRef.current = true
+        setTipNodeId(editingId)
+      } else {
+        setTipNodeId((prev) => (prev === editingId ? null : prev))
+      }
       return
     }
     tipHoldRef.current = false
     setTipNodeId(null)
-  }, [editingId])
+  }, [editingId, editingTruncated])
 
   const editingNode = editingId ? allNodesById.get(editingId) : null
   const editingPos = editingId ? layout.positions.get(editingId) ?? editingNode?.bubblePos ?? null : null

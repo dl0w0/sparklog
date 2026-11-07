@@ -1,8 +1,8 @@
 /** 气泡的视觉几何：把节点数据换算成渲染用的中心/半径/形状（含层级半径缩放 D46）。 */
 
 import type { BubbleGeometry } from '@renderer/logic/geometry'
-import { IMPORTANCE_MIN, DEPTH_SCALE, MIN_DEPTH_SCALE } from '@shared/constants'
-import { importanceToMindmapRadius, importanceToRadius } from './bubbleMetrics'
+import { BUBBLE_TEXT_PADDING, IMPORTANCE_MIN, DEPTH_SCALE, MIN_DEPTH_SCALE } from '@shared/constants'
+import { importanceToMindmapRadius, importanceToRadius, shapeMetrics } from './bubbleMetrics'
 import type { BubbleNode, ViewMode, BubbleShape } from '@shared/types/document'
 
 export function isRootNode(node: BubbleNode): boolean {
@@ -189,4 +189,14 @@ export function countLinesInBox(text: string, boxW: number, fontSize: number): n
     }
   }
   return lines
+}
+
+
+/** 该气泡的文字是否真的会被省略号截断（D83：全文文本框的前置条件） */
+export function isBubbleTextTruncated(node: BubbleNode, radius: number, depth: number): boolean {
+  const shape = shapeOf(node)
+  const metrics = shapeMetrics(shape, radius)
+  const box = textBoxOf(shape, metrics, BUBBLE_TEXT_PADDING)
+  const fontSize = node.style?.fontSize ?? depthFontSize(depth)
+  return textOverflowsInBox(node.text, box.w, box.h, fontSize)
 }

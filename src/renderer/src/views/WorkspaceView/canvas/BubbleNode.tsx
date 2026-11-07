@@ -3,10 +3,10 @@ import type { BubbleNode as BubbleNodeData, Vec2, ViewMode } from '@shared/types
 import {
   bubbleTextStyle,
   fontSizeOf,
+  isBubbleTextTruncated,
   isRootNode,
   shapeOf,
-  textBoxOf,
-  textOverflowsInBox
+  textBoxOf
 } from '@renderer/logic/nodeVisual'
 import { shapeMetrics } from '@renderer/logic/bubbleMetrics'
 import { BUBBLE_TEXT_PADDING } from '@shared/constants'
@@ -69,7 +69,8 @@ function BubbleNodeImpl({
   const padding = BUBBLE_TEXT_PADDING
   // 文字区 = 气泡真实形状的内接矩形（D75），四角不会压到圆弧
   const textBox = textBoxOf(shape, metrics, padding)
-  const clamp = textOverflowsInBox(node.text, textBox.w, textBox.h, fontSize)
+  // 与 CanvasStage 的判定保持一致（D83）
+  const clamp = isBubbleTextTruncated(node, radius, depth)
   const maxLines = Math.max(1, Math.floor(textBox.h / (fontSize * 1.3)))
   const shared = bubbleTextStyle(node, depth)
   const textStyle: React.CSSProperties = {

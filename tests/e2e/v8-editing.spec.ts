@@ -242,6 +242,28 @@ test.describe('v8 编辑态排版一致 / 全文文本框可编辑', () => {
     await expect.poll(async () => page.locator('.sl-bubble-tooltip').count()).toBe(0)
   })
 
+  test('未截断的气泡三种时机都不弹文本框（D83）', async () => {
+    await makeBubble('短文本')
+    const bubble = page.locator('[data-bubble-id]').first()
+    const tip = page.locator('.sl-bubble-tooltip')
+
+    // ① 没有省略号命中区
+    expect(await page.locator('.sl-ellipsis-hit').count()).toBe(0)
+
+    // ② 长按也不出现
+    await bubble.hover()
+    await page.waitForTimeout(900)
+    await expect(tip).toHaveCount(0)
+
+    // ③ 双击进入编辑也不出现
+    await bubble.dblclick()
+    await expect(page.locator('.sl-inline-editor textarea')).toBeVisible()
+    await expect(tip).toHaveCount(0)
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(150)
+    await expect(tip).toHaveCount(0)
+  })
+
   test('内联编辑与全文文本框互斥（D77）', async () => {
     await makeBubble(LONG)
     const bubble = page.locator('[data-bubble-id]').first()

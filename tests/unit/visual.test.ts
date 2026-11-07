@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { defaultFileStem, displayName, fileBaseName, windowTitle } from '@renderer/logic/title'
-import { fontSizeOf, radiusOf, shapeOf, textBoxOf, textOverflowsInBox } from '@renderer/logic/nodeVisual'
+import {
+  fontSizeOf,
+  isBubbleTextTruncated,
+  radiusOf,
+  shapeOf,
+  textBoxOf,
+  textOverflowsInBox
+} from '@renderer/logic/nodeVisual'
 import { createEmptyDocument } from '@shared/logic/documentCodec'
 import { makeNode } from '../helpers'
 
@@ -87,6 +94,23 @@ describe('文字可用区域（D75）', () => {
     const box = textBoxOf('circle', { rx: 60, ry: 60 }, 10)
     expect(textOverflowsInBox('短', box.w, box.h, 16)).toBe(false)
     expect(textOverflowsInBox('很长的文字'.repeat(40), box.w, box.h, 16)).toBe(true)
+  })
+
+  it('短文本气泡不会被判定为截断（D83 前置条件）', () => {
+    const node = makeNode('n1', [], { x: 0, y: 0 }, { text: '短' })
+    expect(isBubbleTextTruncated(node, radiusOf(node, 'bubble'), 0)).toBe(false)
+  })
+
+  it('超长文本气泡会被判定为截断', () => {
+    const node = makeNode('n2', [], { x: 0, y: 0 }, { text: '很长的文字'.repeat(40) })
+    expect(isBubbleTextTruncated(node, radiusOf(node, 'bubble'), 0)).toBe(true)
+  })
+
+  it('截断判定与 importance 无关（字号不随半径变化）', () => {
+    const small = makeNode('s', [], { x: 0, y: 0 }, { importance: 5, text: '短' })
+    const big = makeNode('b', [], { x: 0, y: 0 }, { importance: 95, text: '短' })
+    expect(isBubbleTextTruncated(small, radiusOf(small, 'bubble'), 0)).toBe(false)
+    expect(isBubbleTextTruncated(big, radiusOf(big, 'bubble'), 0)).toBe(false)
   })
 
   it('中英文混排按宽度估算', () => {
