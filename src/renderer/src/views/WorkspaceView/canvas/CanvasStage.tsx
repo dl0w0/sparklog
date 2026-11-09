@@ -41,7 +41,7 @@ import { createZoneAt, ensureValidLevel, exitZone, moveBubbleIntoZone } from '@r
 import { insertDisplayPos } from '@renderer/actions/insertActions'
 import { insertRadius } from '@renderer/logic/fitBounds'
 import { tidyPositions } from '@renderer/logic/tidy'
-import { commitTransientText } from '@renderer/actions/bubbleActions'
+import { applyTextTransient, commitTransientText } from '@renderer/actions/bubbleActions'
 import BubbleNode from './BubbleNode'
 import EdgeLayer from './EdgeLayer'
 import InlineEditor from './InlineEditor'
@@ -456,6 +456,20 @@ export function CanvasStage(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode])
 
+  // 选中气泡后直接敲字符：进入编辑并把字符追加到末尾（D93）
+  useEffect(() => {
+    const onType = (event: Event): void => {
+      const detail = (event as CustomEvent<{ id: string; char: string }>).detail
+      const node = detail ? useDocStore.getState().doc.nodes.find((n) => n.id === detail.id) : null
+      if (!node) return
+      applyTextTransient(node.id, node.text + detail.char)
+      commitTransientText()
+      useSelectionStore.getState().startEdit(node.id)
+    }
+    window.addEventListener('sparklog:type-to-edit', onType)
+    return () => window.removeEventListener('sparklog:type-to-edit', onType)
+  }, [])
+
   // 点击文本框之外才关闭（D82）
   useEffect(() => {
     const onDown = (event: PointerEvent): void => {
@@ -721,7 +735,10 @@ export function CanvasStage(): JSX.Element {
         }
         return
       }
-      if (!sel.selectedIds.includes(nodeId)) {
+      // D95：Ctrl / Ctrl+Alt 点击不在按下时改选区，交给 pointerup 处理
+      if (event.ctrlKey || event.metaKey) {
+        // 保持选区不变
+      } else if (!sel.selectedIds.includes(nodeId)) {
         if (event.shiftKey) sel.select(nodeId, true)
         else sel.select(nodeId)
       }
@@ -884,8 +901,13 @@ export function CanvasStage(): JSX.Element {
         if (!s) return
 
         // D40：Ctrl + 点击（没拖动）= 先点子气泡，再点父气泡
-        if (s.ctrl && !s.moved) {
+        if (s.ctrl && s.alt && !s.moved) {
           handleCtrlClick(s.nodeId)
+          return
+        }
+        // D95：Ctrl+点击 = 加选 / 减选
+        if (s.ctrl && !s.alt && !s.moved) {
+          useSelectionStore.getState().toggle(s.nodeId)
           return
         }
 
@@ -1621,9 +1643,13 @@ function applyPhysicsFrame(
     grabbed.y = grabbedBase.y + dy
   }
   if (session.ctrl) {
-    // 连线长度跟随拖出的距离：把这条边的静止长度设成当前长度
+    // D96：只固定「该气泡 ↔ 它的父节点」这一条连线；子级连线保持默认物理
+    const dragged = useDocStore.getState().doc.nodes.find((n) => n.id === session.nodeId)
+    const parentIds = new Set(dragged?.parentIds ?? [])
     for (const spring of session.springs) {
-      if (spring.a !== session.nodeId && spring.b !== session.nodeId) continue
+      const other =
+        spring.a === session.nodeId ? spring.b : spring.b === session.nodeId ? spring.a : null
+      if (!other || !parentIds.has(other)) continue
       const a = bodyById.get(spring.a)
       const b = bodyById.get(spring.b)
       if (!a || !b) continue

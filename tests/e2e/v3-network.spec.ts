@@ -62,8 +62,9 @@ test.describe('v3 网络跟随与连接', () => {
     expect(await page.locator('.sl-edge').count()).toBe(0)
 
     // 第一下：作为子；第二下：作为父
-    await page.locator('[data-bubble-id]').first().click({ modifiers: ['Control'] })
-    await page.locator('[data-bubble-id]').nth(1).click({ modifiers: ['Control'] })
+    // D95：建立连接改为 Ctrl+Alt+点击
+    await page.locator('[data-bubble-id]').first().click({ modifiers: ['Control', 'Alt'] })
+    await page.locator('[data-bubble-id]').nth(1).click({ modifiers: ['Control', 'Alt'] })
 
     await expect.poll(async () => page.locator('.sl-edge').count(), { timeout: 8000 }).toBe(1)
   })

@@ -37,7 +37,18 @@ if (!gotLock) {
     })
   })
 
+  let quitting = false
+  app.on('before-quit', () => {
+    quitting = true
+    manager.setQuitting(true)
+  })
+
   app.on('window-all-closed', () => {
-    app.quit()
+    // 关闭画布后必须回到开始页，而不是退出应用（D92）
+    if (quitting) {
+      app.quit()
+      return
+    }
+    void manager.ensureStartWindow()
   })
 }

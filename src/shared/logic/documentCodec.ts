@@ -12,6 +12,7 @@ import {
 } from '../constants'
 import { migrateTaskPayload } from './tasks'
 import type { CanvasSettings } from '../types/settings'
+import type { TextRun } from '../types/document'
 import type {
   BubbleNode,
   EdgeStyle,
@@ -149,6 +150,7 @@ export function parseDocument(text: string): ParseResult {
       zoneId: typeof item.zoneId === 'string' ? item.zoneId : null,
       bubblePos: readVec(item.bubblePos, { x: 0, y: 0 }),
       style: isObject(item.style) ? (item.style as BubbleNode['style']) : undefined,
+      runs: readRuns(item.runs),
       collapsed: item.collapsed === true ? true : undefined,
       importanceOverride: item.importanceOverride === true ? true : undefined,
       linkLength:
@@ -236,6 +238,17 @@ export function parseDocument(text: string): ParseResult {
       pos: readVec(item.pos, { x: 0, y: 0 }),
       pinned: Boolean(item.pinned),
       expanded: item.expanded === true ? true : undefined,
+      runs: readRuns(item.runs),
+      textStyle: isObject(item.textStyle)
+        ? {
+            fontFamily: str(item.textStyle.fontFamily) || undefined,
+            fontSize:
+              typeof item.textStyle.fontSize === 'number' ? item.textStyle.fontSize : undefined,
+            color: str(item.textStyle.color) || undefined,
+            padding:
+              typeof item.textStyle.padding === 'number' ? item.textStyle.padding : undefined
+          }
+        : undefined,
       note: isObject(item.note)
         ? { title: str(item.note.title), content: str(item.note.content) }
         : kind === 'note'
@@ -316,6 +329,19 @@ function readLinks(raw: unknown): Link[] {
     })
   }
   return out
+}
+
+function readRuns(raw: unknown): TextRun[] | undefined {
+  if (!Array.isArray(raw)) return undefined
+  const runs: TextRun[] = []
+  for (const item of raw) {
+    if (!isObject(item)) continue
+    const start = Number(item.start)
+    const end = Number(item.end)
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) continue
+    runs.push({ start, end, style: (item.style ?? {}) as TextRun['style'] })
+  }
+  return runs.length > 0 ? runs : undefined
 }
 
 function readEdgeStyles(raw: unknown): Record<string, EdgeStyle> {

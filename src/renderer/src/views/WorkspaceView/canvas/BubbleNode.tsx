@@ -11,6 +11,8 @@ import {
 import { shapeMetrics } from '@renderer/logic/bubbleMetrics'
 import { BUBBLE_TEXT_PADDING } from '@shared/constants'
 import { getTypographySettings } from '@renderer/logic/runtimeSettings'
+import { splitRuns } from '@renderer/logic/richText'
+import type { TextRunStyle } from '@shared/types/document'
 import { useSettingsStore } from '@renderer/store/settingsStore'
 
 const LONG_HOVER_MS = 650
@@ -197,7 +199,29 @@ function BubbleNodeImpl({
           style={{ ...textStyle, padding: 0, WebkitLineClamp: clamp ? maxLines : undefined }}
           title={clamp ? node.text : undefined}
         >
-          {node.text || ' '}
+          {node.runs && node.runs.length > 0 ? (
+            splitRuns(node.text, node.runs).map((segment, index) => {
+              const style = segment.style as TextRunStyle
+              return (
+                <span
+                  key={index}
+                  style={{
+                    fontFamily: style.fontFamily,
+                    fontSize: style.fontSize ? `${style.fontSize}px` : undefined,
+                    color: style.color,
+                    fontWeight: style.bold ? 700 : undefined,
+                    fontStyle: style.italic ? 'italic' : undefined,
+                    textDecoration: style.underline ? 'underline' : undefined,
+                    background: style.highlight
+                  }}
+                >
+                  {segment.text}
+                </span>
+              )
+            })
+          ) : (
+            node.text || ' '
+          )}
         </div>
       </foreignObject>
       )}

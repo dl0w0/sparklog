@@ -82,8 +82,11 @@ export async function closeApp(app: ElectronApplication): Promise<void> {
 export async function openWorkspace(app: ElectronApplication): Promise<Page> {
   const startPage = await app.firstWindow()
   await startPage.waitForLoadState('domcontentloaded')
+  // 开始页：等左栏按钮可用（v0.2.0 排版，D87）
+  const newCanvas = startPage.getByText('新建空白画布')
+  await newCanvas.waitFor({ state: 'visible', timeout: 15000 })
   const nextWindow = app.waitForEvent('window')
-  await startPage.getByText('新建空白画布').click()
+  await newCanvas.click()
   const ws = await nextWindow
   ws.on('pageerror', (err) => process.stderr.write(`[pageerror] ${err.message}\n`))
   ws.on('console', (msg) => {

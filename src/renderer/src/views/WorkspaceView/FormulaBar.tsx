@@ -4,6 +4,7 @@ import { useDocStore } from '@renderer/store/docStore'
 import { useSelectionStore } from '@renderer/store/selectionStore'
 import { applyTextTransient, commitTransientText, setStyleMany } from '@renderer/actions/bubbleActions'
 import { updateNote, updateTaskLine } from '@renderer/actions/insertActions'
+import { clampFontSize, FONT_SIZE_MIN, FONT_SIZE_MAX } from '@shared/types/settings'
 
 const FONT_FAMILIES = [
   { label: '默认', value: '' },
@@ -86,8 +87,7 @@ export function FormulaBar(): JSX.Element {
 
   const setFontSize = (value: number | undefined): void => {
     if (value === undefined || Number.isNaN(value)) return patchAll({ fontSize: undefined })
-    const clamped = Math.max(8, Math.min(72, Math.round(value)))
-    patchAll({ fontSize: clamped })
+    patchAll({ fontSize: clampFontSize(value) })
   }
 
   useEffect(() => {
@@ -185,8 +185,8 @@ export function FormulaBar(): JSX.Element {
                   ref={sizeRef}
                   className="sl-size-input"
                   type="number"
-                  min={8}
-                  max={72}
+                  min={FONT_SIZE_MIN}
+                  max={FONT_SIZE_MAX}
                   step={1}
                   value={currentFontSize}
                   placeholder="默认"

@@ -59,6 +59,8 @@ export type KeyAction =
   | 'newline'
   | 'editSubmitExit'
   | 'dialogCancel'
+  | 'fontUp'
+  | 'fontDown'
 
 function isKey(input: KeyInput, key: string): boolean {
   return input.key.toLowerCase() === key.toLowerCase()
@@ -73,6 +75,10 @@ export function resolveKey(input: KeyInput, ctx: KeyContext): KeyAction | null {
   if (ctx.mode === 'dialog') {
     return isKey(input, 'Escape') ? 'dialogCancel' : null
   }
+
+  // 字号快捷键：Ctrl+Shift+. / Ctrl+Shift+,（D92）
+  if (ctrl && shift && (isKey(input, '.') || isKey(input, '>'))) return 'fontUp'
+  if (ctrl && shift && (isKey(input, ',') || isKey(input, '<'))) return 'fontDown'
 
   if (ctx.mode === 'editing') {
     // D31：编辑态 Enter 换行，Ctrl+Enter 才提交并建同级

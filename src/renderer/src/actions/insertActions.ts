@@ -5,6 +5,7 @@ import type { BubbleNode, InsertKind, InsertObject, Link, TaskItem, Vec2 } from 
 import { addTaskItem, makeTaskItem, removeTaskItem, toggleTaskItem, updateTaskItem } from '@shared/logic/tasks'
 import { newId } from '@renderer/logic/ids'
 import { makeRadiusResolver, radiusOf } from '@renderer/logic/nodeVisual'
+import { getTypographySettings } from '@renderer/logic/runtimeSettings'
 import { useDocStore } from '@renderer/store/docStore'
 import { useSelectionStore } from '@renderer/store/selectionStore'
 import { ROOT_LEVEL, useViewportStore } from '@renderer/store/viewportStore'
@@ -29,6 +30,17 @@ export function insertDisplayPos(
   return { x: owner.bubblePos.x + r * 0.78, y: owner.bubblePos.y + r * 0.78 }
 }
 
+/** 新建插入对象时快照文本编辑器设置（D91） */
+function snapshotTextStyle(kind: InsertKind): InsertObject['textStyle'] {
+  const typo = getTypographySettings()[kind]
+  return {
+    fontFamily: typo.fontFamily,
+    fontSize: typo.fontSize,
+    color: typo.color,
+    padding: typo.padding
+  }
+}
+
 export function addInsert(kind: InsertKind, ownerBubbleId: string | null, pos?: Vec2): string {
   const store = useDocStore.getState()
   const zoneId = currentZoneId()
@@ -44,6 +56,7 @@ export function addInsert(kind: InsertKind, ownerBubbleId: string | null, pos?: 
     pos: basePos,
     // 落在鼠标点击处的独立对象直接可见；附着在气泡上的默认折叠成图标
     expanded: ownerBubbleId ? false : true,
+    textStyle: snapshotTextStyle(kind),
     pinned: false,
     createdAt: now,
     updatedAt: now

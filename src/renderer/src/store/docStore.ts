@@ -119,8 +119,7 @@ export const useDocStore = create<DocStore>((set, get) => ({
     const after = produce(before, recipe)
     if (after === before) return
     const merged = history.undoLabel !== null && /^新建(子气泡|同级气泡|主气泡)$/.test(history.undoLabel)
-    if (merged) history.amendTop(after)
-    else history.push(label, before, after)
+    if (!(merged && history.amendTop(after))) history.push(label, before, after)
     set({ doc: after, dirty: true, status: 'dirty', ...emptyFlags() })
   },
 

@@ -5,6 +5,7 @@ import type { KeyAction } from '@renderer/logic/keyboard'
 import { navigate } from '@renderer/logic/graph'
 import { useDocStore } from '@renderer/store/docStore'
 import { useSelectionStore } from '@renderer/store/selectionStore'
+import { changeFontSize } from './fontActions'
 import { useUiStore } from '@renderer/store/uiStore'
 import {
   addChildBubble,
@@ -53,6 +54,8 @@ function primary(): string | null {
 }
 
 export function executeKeyAction(action: KeyAction): void {
+  if (action === 'fontUp') return changeFontSize(1)
+  if (action === 'fontDown') return changeFontSize(-1)
   const ui = useUiStore.getState()
   const sel = useSelectionStore.getState()
   switch (action) {

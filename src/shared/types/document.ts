@@ -27,6 +27,23 @@ export interface Viewport {
   offsetY: number
 }
 
+/** 选区文本样式（D93）：只作用于 [start, end) 区间的文字 */
+export interface TextRunStyle {
+  fontFamily?: string
+  fontSize?: number
+  color?: string
+  bold?: boolean
+  italic?: boolean
+  underline?: boolean
+  highlight?: string
+}
+
+export interface TextRun {
+  start: number
+  end: number
+  style: TextRunStyle
+}
+
 export interface BubbleStyle {
   shape?: BubbleShape
   colorKey?: string
@@ -46,6 +63,8 @@ export interface BubbleStyle {
 export interface BubbleNode {
   id: string
   text: string
+  /** 选区文本样式（D93） */
+  runs?: TextRun[]
   /** 1–100 连续值，决定半径 */
   importance: number
   shape: BubbleShape
@@ -123,6 +142,10 @@ export interface InsertObject {
   task?: TaskPayload
   attachment?: AttachmentPayload
   image?: ImagePayload
+  /** 选区文本样式（D93） */
+  runs?: TextRun[]
+  /** 新建时的文本样式快照（D91） */
+  textStyle?: { fontFamily?: string; fontSize?: number; color?: string; padding?: number }
   createdAt: string
   updatedAt: string
 }

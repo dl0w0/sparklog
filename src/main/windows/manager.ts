@@ -23,6 +23,14 @@ export class WindowManager {
   private records = new Map<number, WindowRecord>()
   private startWinId: number | null = null
   onWorkspaceClosed: (() => void) | null = null
+  /** 应用正在退出时不要重建开始页（D92） */
+  private quitting = false
+  /** 进行中的开始页创建（避免并发创建出两个窗口，D97） */
+  private startCreating: Promise<BrowserWindow> | null = null
+
+  setQuitting(value: boolean): void {
+    this.quitting = value
+  }
 
   constructor(private readonly preloadDir: string) {}
 
@@ -48,6 +56,44 @@ export class WindowManager {
   }
 
   async createStartWindow(): Promise<BrowserWindow> {
+    // D97：并发调用复用同一次创建
+    if (this.startCreating) return this.startCreating
+    const existing = this.findStartWindow()
+    if (existing) {
+      existing.show()
+      existing.focus()
+      return existing
+    }
+    const task = this.doCreateStartWindow()
+    this.startCreating = task
+    try {
+      return await task
+    } finally {
+      this.startCreating = null
+    }
+  }
+
+  /** 找到任意一个仍存活的开始页窗口（D97） */
+  private findStartWindow(): BrowserWindow | null {
+    for (const rec of this.records.values()) {
+      if (rec.kind !== 'start') continue
+      try {
+        if (!rec.win.isDestroyed()) return rec.win
+      } catch {
+        // 窗口对象已销毁，跳过
+      }
+    }
+    for (const win of BrowserWindow.getAllWindows()) {
+      try {
+        if (this.records.get(win.id)?.kind === 'start' && !win.isDestroyed()) return win
+      } catch {
+        // 同上
+      }
+    }
+    return null
+  }
+
+  private async doCreateStartWindow(): Promise<BrowserWindow> {
     if (this.startWinId !== null) {
       const existing = this.records.get(this.startWinId)
       if (existing && !existing.win.isDestroyed()) {
@@ -97,6 +143,17 @@ export class WindowManager {
     return win
   }
 
+  /** 确保开始页窗口存在并聚焦（D92） */
+  async ensureStartWindow(): Promise<void> {
+    const existing = this.findStartWindow()
+    if (existing) {
+      existing.show()
+      existing.focus()
+      return
+    }
+    await this.createStartWindow()
+  }
+
   async createWorkspaceWindow(filePath: string | null = null): Promise<BrowserWindow> {
     const saved = await loadWindowState('workspace')
     const win = new BrowserWindow({
@@ -139,6 +196,7 @@ export class WindowManager {
     win.on('closed', () => {
       this.records.delete(win.id)
       this.onWorkspaceClosed?.()
+      if (!this.quitting) void this.ensureStartWindow()
     })
     win.once('ready-to-show', () => win.show())
     await this.load(win, 'index')

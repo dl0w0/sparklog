@@ -33,7 +33,7 @@ export const SCALE_MIN = 0.05
 export const SCALE_MAX = 4
 
 /** 撤销栈深度上限 */
-export const HISTORY_LIMIT = 100
+export const HISTORY_LIMIT = 500
 
 /** 形状比例 */
 export const ELLIPSE_RX = 1.15

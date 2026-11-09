@@ -58,6 +58,8 @@ export class HistoryStack<T> {
   /** 用新的 after 覆盖栈顶（用于「新建气泡 + 首次输入文字」合并成一次撤销） */
   amendTop(after: T): boolean {
     if (this.cursor < 0) return false
+    // 撤销之后再改：不能并入旧记录，必须作为新操作（D94）
+    if (this.canRedo) return false
     const entry = this.entries[this.cursor]
     if (!entry) return false
     this.entries[this.cursor] = { ...entry, after }

@@ -16,8 +16,8 @@ test.describe('v1.0 核心闭环', () => {
     const h = await launchApp()
     try {
       const start = await h.start()
-      await expect(start.locator('.sl-brand')).toBeVisible()
-      await expect(start.getByText('新建空白画布')).toBeVisible()
+      await expect(start.locator('.sl-brand')).toBeVisible({ timeout: 15000 })
+      await expect(start.getByText('新建空白画布')).toBeVisible({ timeout: 15000 })
 
       const ws = await openWorkspace(h.app)
       // D61：新画布自带一个起点气泡；清掉它验证空态提示

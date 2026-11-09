@@ -43,9 +43,30 @@ export function useShortcuts(): void {
         },
         context
       )
-      if (!action) return
-      event.preventDefault()
-      executeKeyAction(action)
+      if (action) {
+        event.preventDefault()
+        executeKeyAction(action)
+        return
+      }
+
+      // 没有匹配到快捷键时，可打印字符才进入编辑（D93）
+      if (
+        context.mode === 'canvas' &&
+        !event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        event.key.length === 1 &&
+        sel.selectedIds.length === 1
+      ) {
+        const id = sel.selectedIds[0]
+        const node = useDocStore.getState().doc.nodes.find((n) => n.id === id)
+        if (node) {
+          event.preventDefault()
+          window.dispatchEvent(
+            new CustomEvent('sparklog:type-to-edit', { detail: { id, char: event.key } })
+          )
+        }
+      }
     }
 
     window.addEventListener('keydown', onKeyDown)

@@ -176,6 +176,8 @@ export interface AddChildOptions {
   zoneId?: string | null
   shape?: BubbleNode['shape']
   colorKey?: string
+  /** 新建时的文本样式快照（D91） */
+  style?: BubbleNode['style']
   now?: string
 }
 
@@ -187,6 +189,7 @@ export function createBubble(opts: AddChildOptions): BubbleNode {
     importance: opts.importance ?? IMPORTANCE_DEFAULT,
     shape: opts.shape ?? 'circle',
     colorKey: opts.colorKey ?? 'default',
+    ...(opts.style ? { style: opts.style } : {}),
     parentIds: [],
     zoneId: opts.zoneId ?? null,
     bubblePos: opts.pos ?? { x: 0, y: 0 },

@@ -76,9 +76,13 @@ export const DEPTH_FONT_BASE = 20
 export const DEPTH_FONT_STEP = 1.6
 export const DEPTH_FONT_MIN = 11
 
+/** 层级字号比例：每深一级 ×0.88（D91） */
+export const DEPTH_FONT_RATIO = 0.88
+
 export function depthFontSize(depth: number): number {
   const base = getTypographySettings().bubble.fontSize ?? DEPTH_FONT_BASE
-  return Math.max(DEPTH_FONT_MIN, base - Math.max(0, depth) * DEPTH_FONT_STEP)
+  const scaled = base * Math.pow(DEPTH_FONT_RATIO, Math.max(0, depth))
+  return Math.max(DEPTH_FONT_MIN, Math.round(scaled))
 }
 
 /**
@@ -159,11 +163,11 @@ export function bubbleTextStyle(node: BubbleNode, depth: number): Record<string,
   return {
     fontSize,
     lineHeight: BUBBLE_LINE_HEIGHT,
-    fontFamily: node.style?.fontFamily ?? 'inherit',
+    fontFamily: node.style?.fontFamily ?? getTypographySettings().bubble.fontFamily ?? 'inherit',
     fontWeight: node.style?.bold ? 700 : 400,
     fontStyle: node.style?.italic ? 'italic' : 'normal',
     textDecoration: node.style?.underline ? 'underline' : 'none',
-    color: node.style?.textColor ?? 'inherit',
+    color: node.style?.textColor ?? getTypographySettings().bubble.color ?? 'inherit',
     textAlign: 'center',
     wordBreak: 'break-word'
   }

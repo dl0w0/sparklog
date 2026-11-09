@@ -23,10 +23,10 @@ import {
   moveSubtree
 } from '@renderer/logic/graph'
 import { placeNewChild, placeNewRoot } from '@renderer/logic/layout/bubbleSpawn'
-import { makeRadiusResolver } from '@renderer/logic/nodeVisual'
+import { computeDepths, depthFontSize, makeRadiusResolver } from '@renderer/logic/nodeVisual'
 import { newId } from '@renderer/logic/ids'
 import { useDocStore } from '@renderer/store/docStore'
-import { getShapeSettings } from '@renderer/logic/runtimeSettings'
+import { getShapeSettings, getTypographySettings } from '@renderer/logic/runtimeSettings'
 import { useSelectionStore } from '@renderer/store/selectionStore'
 import { currentZoneLevelId } from '@renderer/store/viewportStore'
 
@@ -45,6 +45,19 @@ function occupiedOf(nodes: readonly BubbleNode[], mode: ViewMode): { pos: Vec2; 
 }
 
 /** 新建子气泡，返回新 id（供 UI 进入编辑态） */
+/** 新建对象时把文本编辑器设置快照为默认样式（D91） */
+export function defaultTextStyle(
+  depth = 0
+): { fontFamily?: string; textColor?: string; fontSize?: number } | undefined {
+  const typography = getTypographySettings().bubble
+  const style: { fontFamily?: string; textColor?: string; fontSize?: number } = {}
+  if (typography.fontFamily) style.fontFamily = typography.fontFamily
+  if (typography.color) style.textColor = typography.color
+  // 字号按层级在创建时定格，已有气泡不随后续设置变化（D91）
+  style.fontSize = depthFontSize(depth)
+  return style
+}
+
 export function addChildBubble(parentId: string): string | null {
   const { doc, commit } = useDocStore.getState()
   const parent = doc.nodes.find((n) => n.id === parentId)
@@ -58,12 +71,14 @@ export function addChildBubble(parentId: string): string | null {
     radiusOf(createBubble({ id: 'probe', importance: IMPORTANCE_DEFAULT })),
     occupiedOf(siblings, mode)
   )
+  const childDepth = (computeDepths(doc.nodes).get(parentId) ?? 0) + 1
   const child = createBubble({
     id: newId('b'),
     text: '',
     zoneId: parent.zoneId,
     pos,
-    shape: doc.theme.overrides?.defaultShape ?? 'circle'
+    shape: doc.theme.overrides?.defaultShape ?? 'circle',
+    style: defaultTextStyle(childDepth)
   })
   commit('新建子气泡', (d) => {
     const next = addChild(d.nodes, parentId, child)
@@ -95,12 +110,14 @@ export function addSiblingBubble(siblingId: string): string | null {
       radiusOf(sibling)
     )
   }
+  const siblingDepth = computeDepths(doc.nodes).get(siblingId) ?? 0
   const node = createBubble({
     id: newId('b'),
     text: '',
     zoneId: sibling.zoneId,
     pos,
-    shape: doc.theme.overrides?.defaultShape ?? 'circle'
+    shape: doc.theme.overrides?.defaultShape ?? 'circle',
+    style: defaultTextStyle(siblingDepth)
   })
   commit('新建同级气泡', (d) => {
     d.nodes = addSibling(d.nodes, siblingId, node)
@@ -121,7 +138,8 @@ export function addRootBubble(pos: Vec2, zoneId?: string | null): string | null 
     id: newId('b'),
     zoneId: targetZone,
     pos: placed,
-    shape: doc.theme.overrides?.defaultShape ?? 'circle'
+    shape: doc.theme.overrides?.defaultShape ?? 'circle',
+    style: defaultTextStyle()
   })
   commit('新建主气泡', (d) => {
     d.nodes = [...d.nodes, node]

@@ -3,6 +3,7 @@ import { DEFAULT_VIEWPORT } from '@shared/constants'
 import type { InsertKind, InsertObject } from '@shared/types/document'
 import { taskSummary } from '@shared/logic/tasks'
 import { worldToScreen } from '@renderer/logic/layout/fitView'
+import { getTypographySettings } from '@renderer/logic/runtimeSettings'
 import { radiusOf } from '@renderer/logic/nodeVisual'
 import {
   addTaskLine,
@@ -189,6 +190,14 @@ export function InsertLayer(): JSX.Element {
               left: screen.x,
               top: screen.y,
               pointerEvents: 'auto',
+              ...(() => {
+                const typo = insert.textStyle ?? getTypographySettings()[insert.kind]
+                return {
+                  fontFamily: typo.fontFamily,
+                  fontSize: typo.fontSize,
+                  color: typo.color
+                }
+              })(),
               // D32：卡片随画布缩放同步缩放与移位（拖动时只改 left/top，保持缩放不变）
               transform: `translate(-50%, -50%) scale(${Math.max(0.2, vp.scale)})`
             }}

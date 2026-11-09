@@ -11,6 +11,7 @@ import { BUBBLE_TEXT_PADDING } from '@shared/constants'
 import { shapeMetrics } from '@renderer/logic/bubbleMetrics'
 import { worldToScreen } from '@renderer/logic/layout/fitView'
 import { useUiStore } from '@renderer/store/uiStore'
+import { useSelectionStore } from '@renderer/store/selectionStore'
 import { getTypographySettings } from '@renderer/logic/runtimeSettings'
 
 export interface InlineEditorProps {
@@ -111,6 +112,22 @@ export function InlineEditor({
           background: 'transparent'
         }}
         onChange={(e) => setValue(e.target.value)}
+        onSelect={(e) => {
+          const el = e.currentTarget
+          const range =
+            el.selectionStart === el.selectionEnd
+              ? null
+              : { start: el.selectionStart, end: el.selectionEnd }
+          useSelectionStore.getState().setEditingRange(range)
+        }}
+        onKeyUp={(e) => {
+          const el = e.currentTarget
+          const range =
+            el.selectionStart === el.selectionEnd
+              ? null
+              : { start: el.selectionStart, end: el.selectionEnd }
+          useSelectionStore.getState().setEditingRange(range)
+        }}
         onBlur={() => finish('commit')}
         onContextMenu={(e) => {
           const el = e.currentTarget

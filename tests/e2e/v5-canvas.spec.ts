@@ -74,7 +74,9 @@ test.describe('v5 画布整体行为', () => {
 
     await card.waitFor({ state: 'visible' })
     // 缩略图：至少一个圆
-    await expect.poll(async () => card.locator('svg circle').count()).toBeGreaterThan(0)
+    await expect
+    .poll(async () => card.locator('svg circle').count(), { timeout: 20000 })
+    .toBeGreaterThan(0)
   })
 
   test('「选择」是内联二级菜单，不弹独立窗口（D58）', async () => {

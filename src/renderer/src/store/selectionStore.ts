@@ -5,6 +5,8 @@ import { create } from 'zustand'
 export interface SelectionStore {
   selectedIds: string[]
   editingId: string | null
+  /** 内联编辑中的选区（D93） */
+  editingRange: { start: number; end: number } | null
   isolateRootId: string | null
   /** 选中的连线 id（D49） */
   selectedEdgeId: string | null
@@ -14,6 +16,7 @@ export interface SelectionStore {
   selectMany: (ids: string[]) => void
   toggle: (id: string) => void
   clear: () => void
+  setEditingRange: (range: { start: number; end: number } | null) => void
   startEdit: (id: string) => void
   stopEdit: () => void
   setIsolate: (id: string | null) => void
@@ -23,6 +26,7 @@ export interface SelectionStore {
 export const useSelectionStore = create<SelectionStore>((set, get) => ({
   selectedIds: [],
   editingId: null,
+  editingRange: null,
   isolateRootId: null,
   selectedEdgeId: null,
 
@@ -50,9 +54,11 @@ export const useSelectionStore = create<SelectionStore>((set, get) => ({
 
   clear: () => set({ selectedIds: [], editingId: null, selectedEdgeId: null }),
 
-  startEdit: (id) => set({ selectedIds: [id], editingId: id }),
+  setEditingRange: (range) => set({ editingRange: range }),
 
-  stopEdit: () => set({ editingId: null }),
+  startEdit: (id) => set({ selectedIds: [id], editingId: id, editingRange: null }),
+
+  stopEdit: () => set({ editingId: null, editingRange: null }),
 
   setIsolate: (id) => set({ isolateRootId: id }),
 

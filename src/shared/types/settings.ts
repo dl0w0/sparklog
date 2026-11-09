@@ -49,6 +49,18 @@ export interface AppSettings {
   physics: PhysicsSettings
   /** command → 加速键 */
   shortcuts: Record<string, string>
+  /** 开始窗口山谷视图单屏可见文件数（1–8，默认 2） */
+  startValleyVisibleCount: number
+  /** 星空亮度倍率（0.6–2.2，默认 1.3） */
+  skyBrightness: number
+  /** 星图视野（度，90–240，默认 170） */
+  skyFov: number
+  /** 星星光点大小（0.5–2，默认 0.75） */
+  starSize: number
+  /** 重要恒星名称标签 */
+  showStarLabels: boolean
+  /** 星座连线 */
+  showConstellations: boolean
 }
 
 /** 画布级覆盖：只允许覆盖部分字段 */
@@ -56,6 +68,17 @@ export type CanvasSettings = {
   typography?: Partial<Record<keyof TypographySettings, Partial<TextSettings>>>
   shape?: Partial<ShapeSettings>
   physics?: Partial<PhysicsSettings>
+}
+
+/** 字号上下限（文本编辑器与快捷键共用，D92） */
+export const FONT_SIZE_MIN = 8
+export const FONT_SIZE_MAX = 72
+/** 快捷键每次增减的步长 */
+export const FONT_SIZE_STEP = 2
+
+export function clampFontSize(value: number): number {
+  if (!Number.isFinite(value)) return 14
+  return Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, Math.round(value)))
 }
 
 export const FONT_FAMILIES: { label: string; value: string }[] = [
@@ -143,7 +166,13 @@ export function createDefaultSettings(): AppSettings {
       minDistance: 18,
       elasticity: 0.08
     },
-    shortcuts: { ...DEFAULT_SHORTCUTS }
+    shortcuts: { ...DEFAULT_SHORTCUTS },
+    startValleyVisibleCount: 2,
+    skyBrightness: 1.3,
+    skyFov: 170,
+    starSize: 0.75,
+    showStarLabels: true,
+    showConstellations: true
   }
 }
 
@@ -209,7 +238,20 @@ export function normalizeSettings(value: unknown, base: AppSettings = createDefa
       minDistance: num(physics.minDistance, base.physics.minDistance, 0, 200),
       elasticity: num(physics.elasticity, base.physics.elasticity, 0.01, 0.6)
     },
-    shortcuts
+    shortcuts,
+    startValleyVisibleCount: Math.min(
+      8,
+      Math.max(1, Math.round(num(raw.startValleyVisibleCount, 2, 1, 8)))
+    ),
+    skyBrightness: num(raw.skyBrightness, base.skyBrightness ?? 1.3, 0.6, 2.2),
+    skyFov: num(raw.skyFov, base.skyFov ?? 170, 90, 240),
+    starSize: num(raw.starSize, base.starSize ?? 0.75, 0.5, 2),
+    showStarLabels:
+      typeof raw.showStarLabels === 'boolean' ? raw.showStarLabels : (base.showStarLabels ?? true),
+    showConstellations:
+      typeof raw.showConstellations === 'boolean'
+        ? raw.showConstellations
+        : (base.showConstellations ?? true)
   }
 }
 
